@@ -1,6 +1,7 @@
 package package_to_image_placer
 
 import (
+	"archive/zip"
 	"fmt"
 	"golang.org/x/sys/unix"
 	"io"
@@ -13,7 +14,7 @@ import (
 
 const timeout = 60 * time.Second
 
-func UnzipPackageToImage(targetImageName string, folderPath string, partitionNumber int, targetFolderPath string) error {
+func UnzipPackageToImage(targetImageName string, archivePath string, partitionNumber int, targetFolderPath string) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -63,33 +64,46 @@ func UnzipPackageToImage(targetImageName string, folderPath string, partitionNum
 		RunCommand("guestunmount "+mountDir, "./", false)
 	}()
 
-	packageSize, err := FolderSize(folderPath)
+	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open zip file: %v", err)
 	}
+	defer zipReader.Close()
+
+	packageSize := getArchiveSize(zipReader)
 	err = checkFreeSize(mountDir, packageSize)
 	if err != nil {
 		return err
 	}
 
+	// TODO copy files from zip
+
 	// Join MountDir and targetPath
 	targetDir := filepath.Join(mountDir, targetFolderPath)
-	fileInfo, err := os.Stat(folderPath)
+	fileInfo, err := os.Stat(archivePath)
 	if fileInfo.IsDir() {
-		targetDir = filepath.Join(targetDir, filepath.Base(folderPath))
+		targetDir = filepath.Join(targetDir, filepath.Base(archivePath))
 	}
 
-	err = copyFilesRecursively(targetDir, folderPath)
+	err = copyFilesRecursively(targetDir, archivePath)
 	if err != nil {
 		return err
 	}
 
-	err = AddService(folderPath, mountDir)
+	err = AddService(archivePath, mountDir)
 	if err != nil {
 		return err
 	}
 	return nil
 
+}
+
+func getArchiveSize(zipReader *zip.ReadCloser) uint64 {
+	packageSize := uint64(0)
+	for _, file := range zipReader.File {
+		packageSize += file.UncompressedSize64
+	}
+	return packageSize
 }
 
 func checkFreeSize(mountDir string, packageSize uint64) error {

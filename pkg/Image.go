@@ -49,22 +49,36 @@ func CloneImage(source, target string) (ImageCreator, error) {
 	return *imageCreator, nil
 }
 
-func ListPartitions(disk *disk.Disk) int {
+type PartitionInfo struct {
+	PartitionNumber int
+	PartitionUUID   string
+	FilesystemType  string
+}
+
+func GetPartitionInfo(disk *disk.Disk) []PartitionInfo {
 	table, err := disk.GetPartitionTable()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("All partitions on disk:\n\n")
+	partitions := []PartitionInfo{}
+	//log.Printf("All partitions on disk:\n\n")
 	for index, p := range table.GetPartitions() {
 		partitionNumber := index + 1
-		log.Printf("Partition %d: %s\n", partitionNumber, p.UUID())
 		fs, err := disk.GetFilesystem(partitionNumber)
 		if err != nil {
 			log.Printf("Error getting filesystem on partition %d: %s\n", partitionNumber, err)
 		}
-		log.Printf("\tFilesystem Type: %s\n\t\t%s", TypeToString(fs.Type()), fs.Label())
+		partition := PartitionInfo{
+			PartitionNumber: partitionNumber,
+			PartitionUUID:   p.UUID(),
+			FilesystemType:  TypeToString(fs.Type()),
+		}
+		//log.Printf("Partition %d: %s\n", partitionNumber, p.UUID())
+		//
+		//log.Printf("\tFilesystem Type: %s\n\t\t%s", TypeToString(fs.Type()), fs.Label())
+		partitions = append(partitions, partition)
 	}
-	return len(table.GetPartitions())
+	return partitions
 }
 
 func TypeToString(t filesystem.Type) string {
