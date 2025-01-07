@@ -2,7 +2,7 @@ package interaction
 
 import (
 	"fmt"
-	"github.com/diskfs/go-diskfs/disk"
+	"github.com/diskfs/go-diskfs"
 	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/koki-develop/go-fzf"
 	"golang.org/x/term"
@@ -16,7 +16,7 @@ import (
 )
 
 func SelectFilesInDir(dir string) ([]string, error) {
-	selectedFiles := []string{}
+	var selectedFiles []string
 	chooseAnotherFile := true
 	for chooseAnotherFile {
 		selectedFile, err := SelectFile(dir)
@@ -102,20 +102,20 @@ func removeDuplicates(slice interface{}) interface{} {
 	return uniqueSlice.Interface()
 }
 
-type PartitionInfo struct {
-	PartitionNumber int
-	PartitionUUID   string
-	FilesystemType  string
+type partitionInfo struct {
+	partitionNumber int
+	partitionUUID   string
+	filesystemType  string
 }
 
-func SelectPartitions(disk *disk.Disk) ([]int, error) {
-	allPartitions := getPartitionInfo(disk)
+func SelectPartitions(diskPath string) ([]int, error) {
+	allPartitions := getPartitionInfo(diskPath)
 	partitionInfo := make([]string, len(allPartitions))
 	for index, partition := range allPartitions {
-		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: %s", partition.PartitionNumber, partition.PartitionUUID, partition.FilesystemType)
+		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: %s", partition.partitionNumber, partition.partitionUUID, partition.filesystemType)
 	}
 
-	partitionsNumbers := []int{}
+	var partitionsNumbers []int
 
 	chooseAnotherFile := true
 	for chooseAnotherFile {
@@ -125,10 +125,9 @@ func SelectPartitions(disk *disk.Disk) ([]int, error) {
 				fmt.Println("User aborted")
 				break
 			}
-			fmt.Printf("Error: %s\n", err)
 			return nil, err
 		}
-		partitionsNumbers = append(partitionsNumbers, allPartitions[selectedPartitionIndex].PartitionNumber)
+		partitionsNumbers = append(partitionsNumbers, allPartitions[selectedPartitionIndex].partitionNumber)
 
 		chooseAnotherFile = GetUserConfirmation("Do you want to select another partition?")
 	}
@@ -140,6 +139,7 @@ func SelectPartitions(disk *disk.Disk) ([]int, error) {
 // The user can also create a new directory.
 // Returns the selected directory.
 func SelectTargetDirectory(searchDir string) (string, error) {
+	// TODO make sure not to get out of root dir
 	dirs, err := getDirectories(searchDir)
 	if err != nil {
 		return "", err
@@ -215,7 +215,7 @@ func GetUserIntInput(message string) []int {
 
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.
 func GetUserConfirmation(message string) bool {
-	var b []byte = make([]byte, 1)
+	var b = make([]byte, 1)
 	fmt.Print(message + " [Y|y to confirm, any other key to cancel]\n")
 	_, err := os.Stdin.Read(b)
 	if err != nil {
@@ -250,27 +250,25 @@ func fuzzySelectOne(prompt string, items []string) (int, error) {
 	return selectedIndex[0], nil
 }
 
-func getPartitionInfo(disk *disk.Disk) []PartitionInfo {
+func getPartitionInfo(imagePath string) []partitionInfo {
+	disk, _ := diskfs.Open(imagePath)
+	defer disk.Close()
 	table, err := disk.GetPartitionTable()
 	if err != nil {
 		log.Fatal(err)
 	}
-	partitions := []PartitionInfo{}
-	//log.Printf("All partitions on disk:\n\n")
+	var partitions []partitionInfo
 	for index, p := range table.GetPartitions() {
 		partitionNumber := index + 1
 		fs, err := disk.GetFilesystem(partitionNumber)
 		if err != nil {
 			log.Printf("Error getting filesystem on partition %d: %s\n", partitionNumber, err)
 		}
-		partition := PartitionInfo{
-			PartitionNumber: partitionNumber,
-			PartitionUUID:   p.UUID(),
-			FilesystemType:  typeToString(fs.Type()),
+		partition := partitionInfo{
+			partitionNumber: partitionNumber,
+			partitionUUID:   p.UUID(),
+			filesystemType:  typeToString(fs.Type()),
 		}
-		//log.Printf("Partition %d: %s\n", partitionNumber, p.UUID())
-		//
-		//log.Printf("\tFilesystem Type: %s\n\t\t%s", TypeToString(fs.Type()), fs.Label())
 		partitions = append(partitions, partition)
 	}
 	return partitions

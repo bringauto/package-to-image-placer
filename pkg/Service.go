@@ -7,15 +7,12 @@ import (
 	"strings"
 )
 
-func AddService(folderPath, mountDir string) error {
-	serviceFiles, err := FindServiceFiles(folderPath)
-	if err != nil {
-		return err
-	}
-
+func AddService(serviceFiles []string, mountDir string) error {
 	fmt.Println("Found service files:", strings.Join(serviceFiles, ", "))
 	for _, serviceFile := range serviceFiles {
 		// TODO ask for each service
+		// TODO check all fields
+		// TODO edit paths
 		destPath := filepath.Join(mountDir, "etc/systemd/system", filepath.Base(serviceFile))
 		err := copyFile(destPath, serviceFile, 0644)
 		if err != nil {

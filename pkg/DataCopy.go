@@ -38,7 +38,7 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 
 	errChan := make(chan string)
 	go func() {
-		cmd := fmt.Sprintf("/usr/bin/guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
+		cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
 		err := RunCommand(cmd, "./", true)
 		errChan <- err
 	}()
@@ -84,12 +84,12 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 		return err
 	}
 
-	err = decompressZipArchive(zipReader, targetDir, overwrite)
+	serviceFiles, err := decompressZipArchive(zipReader, targetDir, overwrite)
 	if err != nil {
 		return err
 	}
 
-	err = AddService(archivePath, mountDir)
+	err = AddService(serviceFiles, mountDir)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	var stat unix.Statfs_t
 	err := unix.Statfs(mountDir, &stat)
 	if err != nil {
-		return fmt.Errorf("error getting free space on filesystem", err)
+		return fmt.Errorf("error getting free space on filesystem: %s", err.Error())
 	}
 
 	freeSpace := stat.Bfree * uint64(stat.Bsize)
@@ -120,30 +120,35 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	return nil
 }
 
-func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite bool) error {
+func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite bool) ([]string, error) {
+	var serviceFiles []string
+
 	for _, file := range zipReader.File {
 		targetFilePath := filepath.Join(targetDir, file.Name)
 		//fmt.Println("unzipping file ", targetFilePath)
 
 		if !strings.HasPrefix(targetFilePath, filepath.Clean(targetDir)+string(os.PathSeparator)) { // Check if the file is within the target directory
-			return fmt.Errorf("invalid file path")
+			return nil, fmt.Errorf("invalid file path")
 		}
 		if file.FileInfo().IsDir() {
 			fmt.Println("creating directory ", targetFilePath)
 			if err := os.MkdirAll(targetFilePath, os.ModePerm); err != nil {
-				return err
+				return nil, err
 			}
 			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(targetFilePath), os.ModePerm); err != nil {
-			return err
+			return nil, err
 		}
 		if err := decompressZipFile(targetFilePath, file, overwrite); err != nil {
-			return err
+			return nil, err
+		}
+		if strings.HasSuffix(file.Name, ".service") {
+			serviceFiles = append(serviceFiles, targetFilePath)
 		}
 	}
-	return nil
+	return serviceFiles, nil
 }
 
 func copyFilesRecursively(destPath, srcPath string) error {
@@ -232,7 +237,6 @@ func copyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	}
 	defer srcFile.Close()
 
-	// TODO Add flag to owerwrite files, otherwise error if already exists
 	destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY, fileMode)
 	if err != nil {
 		return fmt.Errorf("unable to create file %s: %v", destFilePath, err)

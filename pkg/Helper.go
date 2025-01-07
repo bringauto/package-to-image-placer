@@ -19,7 +19,7 @@ func DoesFileExists(file string) bool {
 // Returns true if all dependencies are installed, false otherwise.
 func AllDepsInstalled() error {
 	log.Printf("Checking if all dependencies installed...")
-	notInstalled := []string{}
+	var notInstalled []string
 	allInstalled := true
 	for _, dep := range dependencies {
 		_, err1 := exec.LookPath(dep) // check if executable exists
@@ -40,9 +40,9 @@ func RunCommand(command, path string, verbose bool) string {
 	var errbuf bytes.Buffer
 	var outputString string
 
-	splitted := strings.Split(command, " ")
-	program := splitted[0]
-	arguments := splitted[1:]
+	split := strings.Split(command, " ")
+	program := split[0]
+	arguments := split[1:]
 
 	cmd := exec.Command(program, arguments...)
 
@@ -67,10 +67,10 @@ func RunCommand(command, path string, verbose bool) string {
 
 	err = cmd.Wait()
 
-	stderr_string := errbuf.String()
+	stderrString := errbuf.String()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
-			log.Printf("Return code: %v, stderr: %v", exitError.ExitCode(), stderr_string)
+			log.Printf("Return code: %v, stderr: %v", exitError.ExitCode(), stderrString)
 			panic("Error while running command: " + command)
 		}
 	}
