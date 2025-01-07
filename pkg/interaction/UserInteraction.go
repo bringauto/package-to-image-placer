@@ -233,8 +233,6 @@ func SetUpCommandline() {
 	}
 	//do not cache characters
 	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
-	// do not display entered characters on the screen
-	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
 }
 
 func fuzzySelectOne(prompt string, items []string) (int, error) {

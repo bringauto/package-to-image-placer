@@ -31,8 +31,7 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 	go func() {
 		sig := <-sigChan
 		fmt.Printf("Received signal: %s\n", sig)
-		println("unmounting partition")
-		RunCommand("guestunmount "+mountDir, "./", false)
+		unmount(mountDir)
 		os.Exit(1)
 	}()
 
@@ -63,8 +62,7 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 	}
 
 	defer func() {
-		println("Unmounting partition")
-		RunCommand("guestunmount "+mountDir, "./", false)
+		unmount(mountDir)
 	}()
 
 	targetDir, err := interaction.SelectTargetDirectory(mountDir)
@@ -95,6 +93,11 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 	}
 	return nil
 
+}
+
+func unmount(mountDir string) {
+	println("Unmounting partition")
+	RunCommand("guestunmount "+mountDir, "./", false)
 }
 
 func getArchiveSize(zipReader *zip.ReadCloser) uint64 {

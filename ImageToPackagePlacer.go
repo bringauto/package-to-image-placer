@@ -26,7 +26,7 @@ func main() {
 
 	err := packagePlacer.AllDepsInstalled()
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
+		log.Printf("Error: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -42,33 +42,33 @@ func main() {
 	interaction.SetUpCommandline()
 	selectedFiles, err := interaction.SelectFilesInDir(*packageDirectory)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
+		log.Printf("Error: %s\n", err)
 		return
 	}
 
 	if len(selectedFiles) == 0 {
-		fmt.Printf("No files selected\n")
+		log.Printf("No files selected\n")
 		return
 	}
-	fmt.Printf("Selected files: %s\n", selectedFiles)
+	log.Printf("Selected files: %s\n", selectedFiles)
 
 	if !*noClone {
 		err := packagePlacer.CloneImage(*sourceImage, *targetImage)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			log.Printf("Error: %s\n", err)
 			return
 		}
 	}
 	targetPartitions, err := interaction.SelectPartitions(*targetImage)
 	if err != nil {
-		fmt.Printf("Error while selecting partitions: %s\n", err)
+		log.Printf("Error while selecting partitions: %s\n", err)
 	}
 	for _, partition := range targetPartitions {
 		log.Printf("Copying to partition: %d\n", partition)
 		for _, archive := range selectedFiles {
 			err := packagePlacer.UnzipPackageToImage(*targetImage, archive, partition, "", *overwrite)
 			if err != nil {
-				fmt.Printf("Error: %s\n", err)
+				log.Printf("Error: %s\n", err)
 			}
 		}
 	}
