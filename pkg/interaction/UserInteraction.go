@@ -3,12 +3,12 @@ package interaction
 import (
 	"fmt"
 	"github.com/diskfs/go-diskfs/disk"
+	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/koki-develop/go-fzf"
 	"golang.org/x/term"
 	"log"
 	"os"
 	"os/exec"
-	"package-to-image-placer/pkg"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -25,7 +25,6 @@ func SelectFilesInDir(dir string) ([]string, error) {
 				fmt.Println("User aborted")
 				break
 			}
-			fmt.Printf("Error: %s\n", err)
 			return nil, err
 		}
 		selectedFiles = append(selectedFiles, selectedFile)
@@ -58,7 +57,7 @@ func SelectFile(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Printf("Current directory: %s\n", absDir)
+	//log.Printf("Current directory: %s\n", absDir)
 	files, err := getDirsAndZips(dir)
 	if err != nil {
 		return "", err
@@ -103,8 +102,14 @@ func removeDuplicates(slice interface{}) interface{} {
 	return uniqueSlice.Interface()
 }
 
+type PartitionInfo struct {
+	PartitionNumber int
+	PartitionUUID   string
+	FilesystemType  string
+}
+
 func SelectPartitions(disk *disk.Disk) ([]int, error) {
-	allPartitions := package_to_image_placer.GetPartitionInfo(disk)
+	allPartitions := getPartitionInfo(disk)
 	partitionInfo := make([]string, len(allPartitions))
 	for index, partition := range allPartitions {
 		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: %s", partition.PartitionNumber, partition.PartitionUUID, partition.FilesystemType)
@@ -125,7 +130,7 @@ func SelectPartitions(disk *disk.Disk) ([]int, error) {
 		}
 		partitionsNumbers = append(partitionsNumbers, allPartitions[selectedPartitionIndex].PartitionNumber)
 
-		chooseAnotherFile = GetUserConfirmation("Do you want to select another partition? [Y|y to confirm]\n")
+		chooseAnotherFile = GetUserConfirmation("Do you want to select another partition?")
 	}
 	partitionsNumbers = removeDuplicates(partitionsNumbers).([]int)
 	return partitionsNumbers, nil
@@ -243,4 +248,45 @@ func fuzzySelectOne(prompt string, items []string) (int, error) {
 		return -1, err
 	}
 	return selectedIndex[0], nil
+}
+
+func getPartitionInfo(disk *disk.Disk) []PartitionInfo {
+	table, err := disk.GetPartitionTable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	partitions := []PartitionInfo{}
+	//log.Printf("All partitions on disk:\n\n")
+	for index, p := range table.GetPartitions() {
+		partitionNumber := index + 1
+		fs, err := disk.GetFilesystem(partitionNumber)
+		if err != nil {
+			log.Printf("Error getting filesystem on partition %d: %s\n", partitionNumber, err)
+		}
+		partition := PartitionInfo{
+			PartitionNumber: partitionNumber,
+			PartitionUUID:   p.UUID(),
+			FilesystemType:  typeToString(fs.Type()),
+		}
+		//log.Printf("Partition %d: %s\n", partitionNumber, p.UUID())
+		//
+		//log.Printf("\tFilesystem Type: %s\n\t\t%s", TypeToString(fs.Type()), fs.Label())
+		partitions = append(partitions, partition)
+	}
+	return partitions
+}
+
+func typeToString(t filesystem.Type) string {
+	switch t {
+	case filesystem.TypeFat32:
+		return "FAT32"
+	case filesystem.TypeISO9660:
+		return "ISO9660"
+	case filesystem.TypeSquashfs:
+		return "Squashfs"
+	case filesystem.TypeExt4:
+		return "Ext4"
+	default:
+		return "Unknown"
+	}
 }

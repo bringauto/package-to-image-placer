@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"golang.org/x/sys/unix"
 	"io"
+	"log"
 	"os"
 	"os/signal"
+	"package-to-image-placer/pkg/interaction"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
 
 const timeout = 60 * time.Second
 
-func UnzipPackageToImage(targetImageName string, archivePath string, partitionNumber int, targetFolderPath string) error {
+func UnzipPackageToImage(targetImageName string, archivePath string, partitionNumber int, targetFolderPath string, overwrite bool) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -64,6 +67,11 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 		RunCommand("guestunmount "+mountDir, "./", false)
 	}()
 
+	targetDir, err := interaction.SelectTargetDirectory(mountDir)
+	if err != nil {
+		return err
+	}
+
 	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to open zip file: %v", err)
@@ -76,16 +84,7 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 		return err
 	}
 
-	// TODO copy files from zip
-
-	// Join MountDir and targetPath
-	targetDir := filepath.Join(mountDir, targetFolderPath)
-	fileInfo, err := os.Stat(archivePath)
-	if fileInfo.IsDir() {
-		targetDir = filepath.Join(targetDir, filepath.Base(archivePath))
-	}
-
-	err = copyFilesRecursively(targetDir, archivePath)
+	err = decompressZipArchive(zipReader, targetDir, overwrite)
 	if err != nil {
 		return err
 	}
@@ -118,6 +117,32 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 		return fmt.Errorf("not enough space to copy package. Free space on partition: %dMB, package size: %dMB", freeSpace/1024/1024, packageSize/1024/1024)
 	}
 	fmt.Printf("Copying package of size %dMB to filesystem of size %dMB\n", packageSize/1024/1024, freeSpace/1024/1024)
+	return nil
+}
+
+func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite bool) error {
+	for _, file := range zipReader.File {
+		targetFilePath := filepath.Join(targetDir, file.Name)
+		//fmt.Println("unzipping file ", targetFilePath)
+
+		if !strings.HasPrefix(targetFilePath, filepath.Clean(targetDir)+string(os.PathSeparator)) { // Check if the file is within the target directory
+			return fmt.Errorf("invalid file path")
+		}
+		if file.FileInfo().IsDir() {
+			fmt.Println("creating directory ", targetFilePath)
+			if err := os.MkdirAll(targetFilePath, os.ModePerm); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(targetFilePath), os.ModePerm); err != nil {
+			return err
+		}
+		if err := decompressZipFile(targetFilePath, file, overwrite); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -164,6 +189,39 @@ func copyFilesRecursively(destPath, srcPath string) error {
 			}
 		}
 	}
+	return nil
+}
+
+func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool) error {
+	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
+	if !overwrite {
+		_, err := os.Stat(destFilePath)
+		if err == nil {
+			return fmt.Errorf("file %s already exists. Use -overwrite flag to overwrite existing files.", destFilePath)
+		}
+	}
+	srcFile, err := srcZipFile.Open()
+	if err != nil {
+		return fmt.Errorf("unable to open file %s: %v", srcZipFile.Name, err)
+	}
+	defer srcFile.Close()
+
+	destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY, srcZipFile.Mode())
+	if err != nil {
+		return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, srcFile)
+	if err != nil {
+		return fmt.Errorf("unable to copy file %s: %v", srcZipFile.Name, err)
+	}
+	// TODO do we want to change permissions if the file already exists?
+	// Set the file permissions
+	//err = os.Chmod(destFilePath, fileMode)
+	//if err != nil {
+	//	return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
+	//}
 	return nil
 }
 

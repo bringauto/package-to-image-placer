@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/diskfs/go-diskfs"
 	"github.com/diskfs/go-diskfs/disk"
-	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/diskfs/go-diskfs/partition/gpt"
 	"log"
 	"os"
@@ -16,8 +15,9 @@ type ImageCreator struct {
 	targetFile string // Maybe not needed, only used in parted
 }
 
+// CloneImage creates new image and clones source image to it
 func CloneImage(source, target string) (ImageCreator, error) {
-	// CloneImage creates a clone of the image
+	log.Printf("Cloning image from %s to %s", source, target)
 	imageCreator := new(ImageCreator)
 	imageCreator.targetFile = target
 	err := error(nil)
@@ -47,53 +47,6 @@ func CloneImage(source, target string) (ImageCreator, error) {
 	}
 
 	return *imageCreator, nil
-}
-
-type PartitionInfo struct {
-	PartitionNumber int
-	PartitionUUID   string
-	FilesystemType  string
-}
-
-func GetPartitionInfo(disk *disk.Disk) []PartitionInfo {
-	table, err := disk.GetPartitionTable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	partitions := []PartitionInfo{}
-	//log.Printf("All partitions on disk:\n\n")
-	for index, p := range table.GetPartitions() {
-		partitionNumber := index + 1
-		fs, err := disk.GetFilesystem(partitionNumber)
-		if err != nil {
-			log.Printf("Error getting filesystem on partition %d: %s\n", partitionNumber, err)
-		}
-		partition := PartitionInfo{
-			PartitionNumber: partitionNumber,
-			PartitionUUID:   p.UUID(),
-			FilesystemType:  TypeToString(fs.Type()),
-		}
-		//log.Printf("Partition %d: %s\n", partitionNumber, p.UUID())
-		//
-		//log.Printf("\tFilesystem Type: %s\n\t\t%s", TypeToString(fs.Type()), fs.Label())
-		partitions = append(partitions, partition)
-	}
-	return partitions
-}
-
-func TypeToString(t filesystem.Type) string {
-	switch t {
-	case filesystem.TypeFat32:
-		return "FAT32"
-	case filesystem.TypeISO9660:
-		return "ISO9660"
-	case filesystem.TypeSquashfs:
-		return "Squashfs"
-	case filesystem.TypeExt4:
-		return "Ext4"
-	default:
-		return "Unknown"
-	}
 }
 
 func (imageCreator ImageCreator) copyPartitionTable() error {
