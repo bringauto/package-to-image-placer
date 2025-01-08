@@ -2,11 +2,14 @@ module package-to-image-placer
 
 go 1.23
 
-require github.com/diskfs/go-diskfs v1.5.0
+require (
+	github.com/diskfs/go-diskfs v1.5.0
+	golang.org/x/sys v0.28.0
+	github.com/koki-develop/go-fzf v0.15.0
+	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
+	golang.org/x/term v0.6.0
 
-require golang.org/x/sys v0.28.0
-
-require github.com/koki-develop/go-fzf v0.15.0
+)
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -33,6 +36,5 @@ require (
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/term v0.6.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
 )

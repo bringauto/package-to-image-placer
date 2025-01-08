@@ -87,12 +87,11 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 		return err
 	}
 
-	err = AddService(serviceFiles, mountDir)
+	err = AddService(serviceFiles, mountDir, targetDir, overwrite)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while activating service: %v", err)
 	}
 	return nil
-
 }
 
 func unmount(mountDir string) {

@@ -5,7 +5,6 @@
 * golang >= 1.23
 * libguestfs
     * See [libguest installation] section for install instructions.
-* zip
 * ssty
 
 ## Libguest installation

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -34,6 +35,11 @@ func AllDepsInstalled() error {
 		return fmt.Errorf("these dependencies are not installed: %s", strings.Join(notInstalled, ", "))
 	}
 	return nil
+}
+
+func splitStringPreserveSubstrings(input string) []string {
+	re := regexp.MustCompile(`"[^"]*"|\S+`)
+	return re.FindAllString(input, -1)
 }
 
 func RunCommand(command, path string, verbose bool) string {
