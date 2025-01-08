@@ -65,7 +65,7 @@ func UnzipPackageToImage(targetImageName string, archivePath string, partitionNu
 		unmount(mountDir)
 	}()
 
-	targetDir, err := interaction.SelectTargetDirectory(mountDir)
+	targetDir, err := interaction.SelectTargetDirectory(mountDir, mountDir)
 	if err != nil {
 		return err
 	}

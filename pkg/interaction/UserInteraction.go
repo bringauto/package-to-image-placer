@@ -138,12 +138,18 @@ func SelectPartitions(diskPath string) ([]int, error) {
 // SelectTargetDirectory allows the user to select a directory to copy the package to.
 // The user can also create a new directory.
 // Returns the selected directory.
-func SelectTargetDirectory(searchDir string) (string, error) {
-	// TODO make sure not to get out of root dir
-	dirs, err := getDirectories(searchDir)
+func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
+	// Validate that searchDir is within the rootDir
+	if !isWithinRoot(rootDir, searchDir) {
+		return "", fmt.Errorf("attempt to navigate outside the allowed root directory")
+	}
+
+	// Get directories within searchDir
+	dirs, err := getDirectories(searchDir, rootDir)
 	if err != nil {
 		return "", err
 	}
+
 	// Add options for current directory and creating a new directory
 	dirs = append([]string{"Select current directory", "Create new directory"}, dirs...)
 
@@ -164,32 +170,56 @@ func SelectTargetDirectory(searchDir string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		newDir = filepath.Join(searchDir, newDir)
-		err = os.Mkdir(newDir, 0755)
+		newDirPath := filepath.Join(searchDir, newDir)
+		if !isWithinRoot(rootDir, newDirPath) {
+			return "", fmt.Errorf("attempt to create directory outside of root directory")
+		}
+		err = os.Mkdir(newDirPath, 0755)
 		if err != nil {
 			return "", err
 		}
-		return newDir, nil
+		return newDirPath, nil
 	} else {
-		return SelectTargetDirectory(filepath.Join(searchDir, selectedDir))
+		// Recurse into the selected directory
+		nextDir := filepath.Join(searchDir, selectedDir)
+		return SelectTargetDirectory(rootDir, nextDir)
 	}
 }
 
-// getDirectories returns a list of directories in the provided path. The list includes the parent directory (..).
-func getDirectories(path string) ([]string, error) {
+// getDirectories returns a list of directories in the provided path.
+func getDirectories(path string, rootDir string) ([]string, error) {
 	var dirs []string
 	dirContent, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 	for _, file := range dirContent {
-		if file.IsDir() && file.Name() != path {
+		if file.IsDir() {
 			dirs = append(dirs, file.Name()+"/")
 		}
 	}
 
-	dirs = append([]string{"../"}, dirs...)
+	if filepath.Clean(path) != filepath.Clean(rootDir) {
+		dirs = append([]string{"../"}, dirs...)
+	}
+
 	return dirs, nil
+}
+
+// isWithinRoot checks if the targetPath is within rootDir.
+func isWithinRoot(rootDir, targetPath string) bool {
+	// Clean paths to normalize
+	rootDir = filepath.Clean(rootDir)
+	targetPath = filepath.Clean(targetPath)
+
+	// Get the relative path
+	rel, err := filepath.Rel(rootDir, targetPath)
+	if err != nil {
+		return false
+	}
+
+	// Check if the relative path does not escape the root
+	return !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
 }
 
 func GetUserIntInput(message string) []int {
