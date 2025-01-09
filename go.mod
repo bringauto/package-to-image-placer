@@ -3,12 +3,11 @@ module package-to-image-placer
 go 1.23
 
 require (
+	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/diskfs/go-diskfs v1.5.0
-	golang.org/x/sys v0.28.0
 	github.com/koki-develop/go-fzf v0.15.0
-	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
+	golang.org/x/sys v0.28.0
 	golang.org/x/term v0.6.0
-
 )
 
 require (

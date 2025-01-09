@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -106,13 +105,14 @@ type partitionInfo struct {
 	partitionNumber int
 	partitionUUID   string
 	filesystemType  string
+	filesystemLabel string
 }
 
 func SelectPartitions(diskPath string) ([]int, error) {
 	allPartitions := getPartitionInfo(diskPath)
 	partitionInfo := make([]string, len(allPartitions))
 	for index, partition := range allPartitions {
-		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: %s", partition.partitionNumber, partition.partitionUUID, partition.filesystemType)
+		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: '%s' Type: %s", partition.partitionNumber, partition.partitionUUID, partition.filesystemLabel, partition.filesystemType)
 	}
 
 	var partitionsNumbers []int
@@ -222,27 +222,6 @@ func isWithinRoot(rootDir, targetPath string) bool {
 	return !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
 }
 
-func GetUserIntInput(message string) []int {
-	fmt.Print(message)
-	var input string
-	_, err := fmt.Scanln(&input)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fields := strings.Fields(input)
-	integers := make([]int, len(fields))
-	for i, field := range fields {
-		num, err := strconv.Atoi(field)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		integers[i] = num
-	}
-	return integers
-}
-
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.
 func GetUserConfirmation(message string) bool {
 	var b = make([]byte, 1)
@@ -296,6 +275,7 @@ func getPartitionInfo(imagePath string) []partitionInfo {
 			partitionNumber: partitionNumber,
 			partitionUUID:   p.UUID(),
 			filesystemType:  typeToString(fs.Type()),
+			filesystemLabel: fs.Label(),
 		}
 		partitions = append(partitions, partition)
 	}

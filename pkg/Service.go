@@ -2,42 +2,36 @@ package package_to_image_placer
 
 import (
 	"fmt"
-	"github.com/coreos/go-systemd/unit"
+	"github.com/coreos/go-systemd/v22/unit"
 	"io"
 	"log"
 	"os"
-	"package-to-image-placer/pkg/interaction"
 	"path/filepath"
 	"strings"
 )
 
-func AddService(serviceFiles []string, mountDir string, packageDir string, overwrite bool) error {
-	fmt.Println("Found service files:", strings.Join(serviceFiles, ", "))
-	for _, serviceFile := range serviceFiles {
-		if !interaction.GetUserConfirmation(fmt.Sprintf("Do you want to add %s service?", filepath.Base(serviceFile))) {
-			continue
-		}
-		opts, err := checkAndParseServiceFileContent(serviceFile)
-		if err != nil {
-			return err
-		}
-
-		err = updatePathsInServiceFile(opts, mountDir, packageDir, serviceFile)
-		if err != nil {
-			return fmt.Errorf("failed to update paths in service file: %v", err)
-		}
-
-		err = writeOptsToFile(serviceFile, opts)
-		if err != nil {
-			return err
-		}
-
-		destPath, err := activateService(mountDir, serviceFile, overwrite)
-		if err != nil {
-			return err
-		}
-		fmt.Println("Activated service file:", destPath)
+func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool) error {
+	log.Printf("Activating service %s", filepath.Base(serviceFile))
+	opts, err := checkAndParseServiceFileContent(serviceFile)
+	if err != nil {
+		return err
 	}
+
+	err = updatePathsInServiceFile(opts, mountDir, packageDir, serviceFile)
+	if err != nil {
+		return fmt.Errorf("failed to update paths in service file: %v", err)
+	}
+
+	err = writeOptsToFile(serviceFile, opts)
+	if err != nil {
+		return err
+	}
+
+	destPath, err := activateService(mountDir, serviceFile, overwrite)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Activated service file:", destPath)
 	return nil
 }
 
@@ -87,9 +81,13 @@ func checkAndParseServiceFileContent(serviceFile string) (map[string]unit.UnitOp
 	}
 	defer file.Close()
 
-	opts, err := unit.Deserialize(file)
+	opts, err := unit.DeserializeOptions(file)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing service file: %v", err)
+		if err.Error() == "unexpected newline encountered while parsing option name" {
+			log.Printf("WARNING: Service file %s has an unexpected newline. This may cause issues.\n", serviceFile)
+		} else {
+			return nil, fmt.Errorf("error parsing service file: %v", err)
+		}
 	}
 
 	optsMap := make(map[string]unit.UnitOption)
@@ -120,13 +118,13 @@ func checkAndParseServiceFileContent(serviceFile string) (map[string]unit.UnitOp
 }
 
 func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, packageDir, serviceFile string) error {
+	log.Printf("Updating paths in service file %s", serviceFile)
 	workingDirOpt := optsMap["WorkingDirectory"]
 	workingDir := workingDirOpt.Value
 	execOpt := optsMap["ExecStart"]
 	execStart := execOpt.Value
 
-	// Replaces all occurrences of workingDir with packageDir
-	//updatedExecStart := strings.ReplaceAll(execStart, workingDir, sysPackagePath)
+	// TODO Should replace all occurrences of workingDir with packageDir??
 	originalExecutable := strings.Trim(splitStringPreserveSubstrings(execStart)[0], "'\"")
 	executableWithoutWorkDir := strings.TrimPrefix(originalExecutable, workingDir)
 
@@ -163,7 +161,7 @@ func findExecutableInPath(startPath, executable, packageDir string) (string, err
 	for strings.HasPrefix(currentPath, packageDir) {
 		potentialPath := filepath.Join(currentPath, executable)
 		if _, err := os.Stat(potentialPath); err == nil {
-			return potentialPath, nil
+			return currentPath, nil
 		}
 		currentPath = filepath.Dir(currentPath)
 	}
@@ -179,21 +177,11 @@ func createUnitOptionsSlice(optsMap map[string]unit.UnitOption) []*unit.UnitOpti
 	return unitOptions
 }
 
-func FindServiceFiles(folderPath string) ([]string, error) {
-	var serviceFiles []string
-
-	err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+func isServiceFileInConfig(serviceFile string, configServiceFiles []string) bool {
+	for _, file := range configServiceFiles {
+		if file == filepath.Base(serviceFile) {
+			return true
 		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".service") {
-			serviceFiles = append(serviceFiles, path)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("error walking the path %s: %v", folderPath, err)
 	}
-	return serviceFiles, nil
+	return false
 }

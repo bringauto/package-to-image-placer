@@ -7,7 +7,6 @@ import (
 	"github.com/diskfs/go-diskfs/partition/gpt"
 	"log"
 	"os"
-	"package-to-image-placer/pkg/interaction"
 )
 
 type ImageCreator struct {
@@ -19,15 +18,6 @@ type ImageCreator struct {
 // CloneImage creates new image and clones source image to it
 func CloneImage(source, target string) error {
 	log.Printf("Cloning image from %s to %s", source, target)
-	if DoesFileExists(target) {
-		askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", target)
-		if !interaction.GetUserConfirmation(askUser) {
-			return fmt.Errorf("file already exists and user chose not to delete it")
-		}
-		if err := os.Remove(target); err != nil {
-			return fmt.Errorf("unable to delete existing file: %s", err)
-		}
-	}
 
 	imageCreator := new(ImageCreator)
 	imageCreator.targetFile = target
