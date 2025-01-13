@@ -11,10 +11,14 @@ import (
 	"strings"
 )
 
+// DoesFileExists checks if file exists.
 func DoesFileExists(file string) bool {
 	_, err := os.Stat(file)
 	return !os.IsNotExist(err)
 }
+
+// AllDepsInstalled checks if all required dependencies are installed.
+var dependencies = []string{"guestmount", "guestunmount", "stty"}
 
 // AllDepsInstalled checks if all required dependencies are installed.
 // Returns true if all dependencies are installed, false otherwise.
@@ -37,12 +41,15 @@ func AllDepsInstalled() error {
 	return nil
 }
 
+// splitStringPreserveSubstrings splits a string into substrings while preserving substrings in quotes.
+// e.g. "'a b' c" -> ["'a b'", "c"]
 func splitStringPreserveSubstrings(input string) []string {
 	re := regexp.MustCompile(`"[^"]*"|\S+`)
 	return re.FindAllString(input, -1)
 }
 
-func RunCommand(command, path string, verbose bool) string {
+// RunCommand runs a command. Returns stdout. If error occurs, returns also stderr.
+func RunCommand(command string, verbose bool) (string, error) {
 	var errbuf bytes.Buffer
 	var outputString string
 
@@ -51,8 +58,6 @@ func RunCommand(command, path string, verbose bool) string {
 	arguments := split[1:]
 
 	cmd := exec.Command(program, arguments...)
-
-	cmd.Dir = path
 
 	stdout, _ := cmd.StdoutPipe()
 	cmd.Stderr = &errbuf
@@ -65,20 +70,22 @@ func RunCommand(command, path string, verbose bool) string {
 	line, err := reader.ReadString('\n')
 	for err == nil {
 		if verbose {
-			fmt.Print(line)
+			log.Println(line)
 		}
 		outputString += line
-		line, err = reader.ReadString('\n')
 	}
+	outputString += line
 
 	err = cmd.Wait()
 
 	stderrString := errbuf.String()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
-			log.Printf("Return code: %v, stderr: %v", exitError.ExitCode(), stderrString)
-			panic("Error while running command: " + command)
+			if verbose {
+				log.Printf("Return code: %v, stderr: %v", exitError.ExitCode(), stderrString)
+			}
+			return outputString, fmt.Errorf("return code: %v, stderr: %v", exitError.ExitCode(), stderrString)
 		}
 	}
-	return outputString
+	return outputString, nil
 }

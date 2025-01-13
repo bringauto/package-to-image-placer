@@ -17,6 +17,8 @@ import (
 
 const timeout = 60 * time.Second
 
+// CopyPackageToImagePartitions copies the specified packages to the specified partitions in the configuration.
+// It iterates over each partition and package, calling MountPartitionAndCopyPackage for each combination.
 func CopyPackageToImagePartitions(config *Configuration) error {
 	for _, partition := range config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
@@ -30,6 +32,8 @@ func CopyPackageToImagePartitions(config *Configuration) error {
 	return nil
 }
 
+// MountPartitionAndCopyPackage mounts the specified partition, copies the package to it, and activates any service files found in the package.
+// It handles signals for unmounting the partition and ensures the directory is populated before proceeding.
 func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, config *Configuration) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
@@ -99,7 +103,7 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 				}
 				config.ServiceNames = append(config.ServiceNames, filepath.Base(serviceFile))
 			}
-		} else if isServiceFileInConfig(serviceFile, config.ServiceNames) {
+		} else if isServiceFileInList(serviceFile, config.ServiceNames) {
 			err = AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
 			if err != nil {
 				return fmt.Errorf("error while activating service: %v", err)
@@ -110,6 +114,8 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 	return nil
 }
 
+// handleArchive handles the extraction of the archive file to the target directory.
+// It checks for sufficient free space and returns a list of service files found in the archive.
 func handleArchive(archivePath, mountDir, targetDir string, overwrite bool) ([]string, error) {
 	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -130,20 +136,26 @@ func handleArchive(archivePath, mountDir, targetDir string, overwrite bool) ([]s
 	return serviceFiles, nil
 }
 
+// mountPartition mounts the specified partition to the mount directory using guestmount.
+// It sends any errors encountered to the provided error channel.
 func mountPartition(targetImageName string, partitionNumber int, mountDir string, errChan chan string) chan string {
 	log.Printf("Mounting partition to %s", mountDir)
-	// TODO set user in config??
+	// TODO set userId in config??
 	cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
-	err := RunCommand(cmd, "./", true)
-	errChan <- err
+	_, err := RunCommand(cmd, false)
+	if err != nil {
+		errChan <- err.Error()
+	}
 	return errChan
 }
 
+// unmount unmounts the specified mount directory using guestunmount.
 func unmount(mountDir string) {
 	log.Printf("Unmounting partition")
-	RunCommand("guestunmount "+mountDir, "./", false)
+	RunCommand("guestunmount "+mountDir, true)
 }
 
+// getArchiveSize calculates the total uncompressed size of the files in the zip archive.
 func getArchiveSize(zipReader *zip.ReadCloser) uint64 {
 	packageSize := uint64(0)
 	for _, file := range zipReader.File {
@@ -152,6 +164,8 @@ func getArchiveSize(zipReader *zip.ReadCloser) uint64 {
 	return packageSize
 }
 
+// checkFreeSize checks if there is enough free space in the mount directory to copy the package.
+// It returns an error if there is not enough space.
 func checkFreeSize(mountDir string, packageSize uint64) error {
 	var stat unix.Statfs_t
 	err := unix.Statfs(mountDir, &stat)
@@ -167,6 +181,8 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	return nil
 }
 
+// decompressZipArchive extracts the files from the zip archive to the target directory.
+// It returns a list of service files found in the archive.
 func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite bool) ([]string, error) {
 	var serviceFiles []string
 
@@ -198,6 +214,8 @@ func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite
 	return serviceFiles, nil
 }
 
+// decompressZipFile extracts a single file from the zip archive to the destination path.
+// It returns an error if the file already exists and overwrite is false.
 func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool) error {
 	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
 	if !overwrite {
@@ -226,11 +244,13 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool
 	// Set the file permissions
 	//err = os.Chmod(destFilePath, fileMode)
 	//if err != nil {
-	//	return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
+	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
 	//}
 	return nil
 }
 
+// copyFile copies a file from the source path to the destination path with the specified file mode.
+// It returns an error if the file cannot be opened or created.
 func copyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	srcFile, err := os.Open(srcFilePath)
 	if err != nil {
@@ -252,12 +272,13 @@ func copyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	// Set the file permissions
 	//err = os.Chmod(destFilePath, fileMode)
 	//if err != nil {
-	//	return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
+	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
 	//}
 	return nil
 }
 
-// WaitUntilDirectoryIsPopulated waits until the directory is populated or the timeout is reached
+// WaitUntilDirectoryIsPopulated waits until the directory is populated or the timeout is reached.
+// It returns an error if the directory is not populated within the timeout period.
 func WaitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error {
 	start := time.Now()
 	for {
@@ -275,7 +296,8 @@ func WaitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error 
 	}
 }
 
-// IsDirectoryPopulated checks if the given directory is populated
+// IsDirectoryPopulated checks if the given directory is populated.
+// It returns true if the directory contains at least one file or subdirectory.
 func IsDirectoryPopulated(dirPath string) (bool, error) {
 	dir, err := os.Open(dirPath)
 	if err != nil {

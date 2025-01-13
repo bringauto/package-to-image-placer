@@ -2,7 +2,9 @@ package package_to_image_placer
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"package-to-image-placer/pkg/interaction"
 )
 
 type Configuration struct {
@@ -18,17 +20,29 @@ type Configuration struct {
 	PackageDir       string   `json:"-"`
 }
 
-// Creates a file and places the configuration on form of a JSON string
-func CreateConfigurationFile(config Configuration, path string) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return err
+// CreateConfigurationFile Creates a file and places the configuration in form of a JSON string
+func CreateConfigurationFile(config Configuration) error {
+	var file *os.File
+
+	for {
+		fmt.Printf("Enter path to save configuration file: ")
+		path, err := interaction.ReadStringFromUser()
+		if err != nil {
+			return err
+		}
+
+		file, err = os.Create(path)
+		if err != nil {
+			fmt.Printf("Error creating file: %v. Please try again.\n", err)
+			continue
+		}
+		defer file.Close()
+		break
 	}
-	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "\t")
-	err = encoder.Encode(config)
+	err := encoder.Encode(config)
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,9 @@ import (
 	"strings"
 )
 
+// SelectFilesInDir allows the user to select multiple files in a directory.
+// It repeatedly prompts the user to select files until they choose to stop.
+// Returns a slice of selected file paths.
 func SelectFilesInDir(dir string) ([]string, error) {
 	var selectedFiles []string
 	chooseAnotherFile := true
@@ -33,6 +36,8 @@ func SelectFilesInDir(dir string) ([]string, error) {
 	return selectedFiles, nil
 }
 
+// getDirsAndZips returns a list of directories and zip files in the specified directory.
+// The list includes an option to navigate to the parent directory.
 func getDirsAndZips(dir string) ([]string, error) {
 	var files []string
 	dirContent, err := os.ReadDir(dir)
@@ -51,12 +56,14 @@ func getDirsAndZips(dir string) ([]string, error) {
 	return files, nil
 }
 
+// SelectFile allows the user to select a file from the specified directory.
+// It uses a fuzzy finder to present the files and directories to the user.
+// Returns the selected file path.
 func SelectFile(dir string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
-	//log.Printf("Current directory: %s\n", absDir)
 	files, err := getDirsAndZips(dir)
 	if err != nil {
 		return "", err
@@ -78,6 +85,8 @@ func SelectFile(dir string) (string, error) {
 	return selectedFile, nil
 }
 
+// removeDuplicates removes duplicate elements from a slice.
+// It returns a new slice with unique elements.
 func removeDuplicates(slice interface{}) interface{} {
 	sliceValue := reflect.ValueOf(slice)
 	if sliceValue.Kind() != reflect.Slice {
@@ -108,6 +117,9 @@ type partitionInfo struct {
 	filesystemLabel string
 }
 
+// SelectPartitions allows the user to select multiple partitions from a disk image.
+// It repeatedly prompts the user to select partitions until they choose to stop.
+// Returns a slice of selected partition numbers.
 func SelectPartitions(diskPath string) ([]int, error) {
 	allPartitions := getPartitionInfo(diskPath)
 	partitionInfo := make([]string, len(allPartitions))
@@ -165,8 +177,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 		return searchDir, nil
 	} else if selectedDir == "Create new directory" {
 		fmt.Print("Enter new directory name: ")
-		var newDir string
-		_, err := fmt.Scanln(&newDir)
+		newDir, err := ReadStringFromUser()
 		if err != nil {
 			return "", err
 		}
@@ -184,6 +195,17 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 		nextDir := filepath.Join(searchDir, selectedDir)
 		return SelectTargetDirectory(rootDir, nextDir)
 	}
+}
+
+// ReadStringFromUser reads a string input from the user.
+// Returns the input string.
+func ReadStringFromUser() (string, error) {
+	var newDir string
+	_, err := fmt.Scanln(&newDir)
+	if err != nil {
+		return "", err
+	}
+	return newDir, nil
 }
 
 // getDirectories returns a list of directories in the provided path.
@@ -223,6 +245,7 @@ func isWithinRoot(rootDir, targetPath string) bool {
 }
 
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.
+// Returns true if the user confirms, false otherwise.
 func GetUserConfirmation(message string) bool {
 	var b = make([]byte, 1)
 	fmt.Print(message + " [Y|y to confirm, any other key to cancel]\n")
@@ -234,6 +257,8 @@ func GetUserConfirmation(message string) bool {
 	return !(string(b) != "Y" && string(b) != "y")
 }
 
+// SetUpCommandline sets up the command line for user interaction.
+// It configures the terminal to not cache characters.
 func SetUpCommandline() {
 	log.Printf("Setting up command line...")
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
@@ -244,6 +269,8 @@ func SetUpCommandline() {
 	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
 }
 
+// fuzzySelectOne presents a fuzzy finder to the user to select one item from a list.
+// Returns the index of the selected item.
 func fuzzySelectOne(prompt string, items []string) (int, error) {
 	f, err := fzf.New(fzf.WithPrompt(prompt))
 	if err != nil {
@@ -254,9 +281,14 @@ func fuzzySelectOne(prompt string, items []string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
+	if len(selectedIndex) == 0 {
+		return -1, fmt.Errorf("abort")
+	}
 	return selectedIndex[0], nil
 }
 
+// getPartitionInfo retrieves partition information from a disk image.
+// Returns a slice of partitionInfo structs.
 func getPartitionInfo(imagePath string) []partitionInfo {
 	disk, _ := diskfs.Open(imagePath)
 	defer disk.Close()
@@ -282,6 +314,8 @@ func getPartitionInfo(imagePath string) []partitionInfo {
 	return partitions
 }
 
+// typeToString converts a filesystem.Type to a string representation.
+// Returns the string representation of the filesystem type.
 func typeToString(t filesystem.Type) string {
 	switch t {
 	case filesystem.TypeFat32:

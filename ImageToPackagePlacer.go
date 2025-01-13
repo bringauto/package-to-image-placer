@@ -65,8 +65,10 @@ func main() {
 		return
 	}
 
+	log.Printf("All packages copied successfully\n")
+
 	if config.InteractiveRun && interaction.GetUserConfirmation("Do you want to save the configuration?") {
-		err = packagePlacer.CreateConfigurationFile(config, "config.json")
+		err = packagePlacer.CreateConfigurationFile(config)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 		}
@@ -82,7 +84,7 @@ func parseArguments(args []string) (packagePlacer.Configuration, error) {
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
 	overwrite := flags.Bool("overwrite", false, "Overwrite files in target image")
-	targetDirectory := flags.String("target-dir", "", "Target directory in image")
+	targetDirectory := flags.String("target-dir", "", "Target directory in image (non-interactive mode)")
 	packageDirectory := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
 	showUsage := flags.Bool("h", false, "Show usage")
 
@@ -92,9 +94,11 @@ func parseArguments(args []string) (packagePlacer.Configuration, error) {
 	}
 
 	if *showUsage {
-		fmt.Println("Usage:\n\tpackage-to-image-placer -source <source image> -target <target image>\n")
+		fmt.Printf("Usage:\n" +
+			"Interactive: \t\tpackage-to-image-placer -target <target_image> [ -source <src_image> | -no-clone ] [ opts... ]\n" +
+			"Non-interactive: \tpackage-to-image-placer -config <config_file> [ <override-opts> ]\n")
 		flags.PrintDefaults()
-		return config, fmt.Errorf("usage shown")
+		os.Exit(0)
 	}
 
 	interactiveRun := true
@@ -102,14 +106,14 @@ func parseArguments(args []string) (packagePlacer.Configuration, error) {
 		interactiveRun = false
 		file, err := os.Open(*configFile)
 		if err != nil {
-			return config, fmt.Errorf("Error opening config file: %v", err)
+			return config, fmt.Errorf("error opening config file: %v", err)
 		}
 		defer file.Close()
 
 		decoder := json.NewDecoder(file)
 		err = decoder.Decode(&config)
 		if err != nil {
-			return config, fmt.Errorf("Error decoding config file: %v", err)
+			return config, fmt.Errorf("error decoding config file: %v", err)
 		}
 	}
 

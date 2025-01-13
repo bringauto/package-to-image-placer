@@ -9,18 +9,16 @@ import (
 	"os"
 )
 
-type ImageCreator struct {
-	TargetDisk *disk.Disk
+type imageCreator struct {
+	targetDisk *disk.Disk
 	sourceDisk *disk.Disk
-	targetFile string // Maybe not needed, only used in parted
 }
 
 // CloneImage creates new image and clones source image to it
 func CloneImage(source, target string) error {
 	log.Printf("Cloning image from %s to %s", source, target)
 
-	imageCreator := new(ImageCreator)
-	imageCreator.targetFile = target
+	imageCreator := new(imageCreator)
 	err := error(nil)
 	imageCreator.sourceDisk, err = diskfs.Open(source)
 	if err != nil {
@@ -30,11 +28,11 @@ func CloneImage(source, target string) error {
 
 	sourceImageSize := imageCreator.sourceDisk.Size
 	blockSize := imageCreator.sourceDisk.PhysicalBlocksize
-	imageCreator.TargetDisk, err = diskfs.Create(target, sourceImageSize, diskfs.SectorSize(blockSize))
+	imageCreator.targetDisk, err = diskfs.Create(target, sourceImageSize, diskfs.SectorSize(blockSize))
 	if err != nil {
 		return err
 	}
-	defer imageCreator.TargetDisk.Close()
+	defer imageCreator.targetDisk.Close()
 
 	err = imageCreator.copyPartitionTable()
 	if err != nil {
@@ -50,7 +48,9 @@ func CloneImage(source, target string) error {
 	return nil
 }
 
-func (imageCreator ImageCreator) copyPartitionTable() error {
+// copyPartitionTable copies partition table from source disk to target disk
+// Only GPT partition table is supported. Always sets protective MBR to true
+func (imageCreator imageCreator) copyPartitionTable() error {
 	var partitions []*gpt.Partition
 	sourcePartitionTable, err := imageCreator.sourceDisk.GetPartitionTable()
 	if err != nil {
@@ -66,7 +66,7 @@ func (imageCreator ImageCreator) copyPartitionTable() error {
 		}
 		newPartition := &gpt.Partition{
 			Start:      gptPartition.Start,
-			End:        gptPartition.End, //uint64(start + size/imageCreator.blockSize - 1),
+			End:        gptPartition.End,
 			Size:       gptPartition.Size,
 			Type:       gptPartition.Type,
 			Name:       gptPartition.Name,
@@ -76,13 +76,13 @@ func (imageCreator ImageCreator) copyPartitionTable() error {
 	}
 
 	table := &gpt.Table{
-		ProtectiveMBR:      true, // TODO Need to get it from source disk
+		ProtectiveMBR:      true,
 		LogicalSectorSize:  int(imageCreator.sourceDisk.LogicalBlocksize),
 		PhysicalSectorSize: int(imageCreator.sourceDisk.PhysicalBlocksize),
 		Partitions:         partitions,
 	}
 
-	err = imageCreator.TargetDisk.Partition(table)
+	err = imageCreator.targetDisk.Partition(table)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,8 @@ func (imageCreator ImageCreator) copyPartitionTable() error {
 	return nil
 }
 
-func (imageCreator ImageCreator) copyPartitionData() error {
+// copyPartitionData copies all data from source disk partitions to target disk partitions
+func (imageCreator imageCreator) copyPartitionData() error {
 	sourcePartitionTable, err := imageCreator.sourceDisk.GetPartitionTable()
 	if err != nil {
 		return err
@@ -115,7 +116,7 @@ func (imageCreator ImageCreator) copyPartitionData() error {
 		if err != nil {
 			return err
 		}
-		written, err := imageCreator.TargetDisk.WritePartitionContents(index+1, reader)
+		written, err := imageCreator.targetDisk.WritePartitionContents(index+1, reader)
 		println("written bytes: ", written)
 		if err != nil {
 			return err

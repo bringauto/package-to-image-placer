@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// AddService adds a service file to the image, update paths in it and activates it
+// It returns an error if the service file is missing required fields: ExecStart, Type, User, RestartSec, WorkingDirectory
+// or if the service file has a Type other than 'simple' or WantedBy other than 'multi-user.target'
 func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool) error {
 	log.Printf("Activating service %s", filepath.Base(serviceFile))
 	opts, err := checkAndParseServiceFileContent(serviceFile)
@@ -35,6 +38,7 @@ func AddService(serviceFile string, mountDir string, packageDir string, overwrit
 	return nil
 }
 
+// activateService copies the service file to the image and creates a symlink to it in the multi-user.target.wants directory
 func activateService(mountDir string, serviceFile string, overwrite bool) (string, error) {
 	destPath := filepath.Join(mountDir, "etc/systemd/system", filepath.Base(serviceFile))
 	symlinkPath := filepath.Join(mountDir, "/etc/systemd/system/multi-user.target.wants", filepath.Base(serviceFile))
@@ -57,6 +61,7 @@ func activateService(mountDir string, serviceFile string, overwrite bool) (strin
 	return destPath, nil
 }
 
+// writeOptsToFile writes the updated options to the service file
 func writeOptsToFile(serviceFile string, opts map[string]unit.UnitOption) error {
 	file, err := os.Create(serviceFile)
 	if err != nil {
@@ -74,6 +79,7 @@ func writeOptsToFile(serviceFile string, opts map[string]unit.UnitOption) error 
 
 var requiredFields = []string{"ExecStart", "Type", "User", "RestartSec", "WorkingDirectory"}
 
+// checkAndParseServiceFileContent checks presence and value of required fields and parses the content.
 func checkAndParseServiceFileContent(serviceFile string) (map[string]unit.UnitOption, error) {
 	file, err := os.Open(serviceFile)
 	if err != nil {
@@ -117,6 +123,9 @@ func checkAndParseServiceFileContent(serviceFile string) (map[string]unit.UnitOp
 	return optsMap, nil
 }
 
+// updatePathsInServiceFile updates the paths in the service file to point to the package directory
+// It updates working directory and ExecStart path in the service file to point to the package directory based on the original paths.
+// It returns an error if the executable is not found in the package directory
 func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, packageDir, serviceFile string) error {
 	log.Printf("Updating paths in service file %s", serviceFile)
 	workingDirOpt := optsMap["WorkingDirectory"]
@@ -124,22 +133,22 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	execOpt := optsMap["ExecStart"]
 	execStart := execOpt.Value
 
-	// TODO Should replace all occurrences of workingDir with packageDir??
 	originalExecutable := strings.Trim(splitStringPreserveSubstrings(execStart)[0], "'\"")
 	executableWithoutWorkDir := strings.TrimPrefix(originalExecutable, workingDir)
 
-	newWorkDir, err := findExecutableInPath(filepath.Dir(serviceFile), executableWithoutWorkDir, packageDir)
+	newWorkDirWithMountDir, err := findExecutableInPath(filepath.Dir(serviceFile), executableWithoutWorkDir, packageDir)
 	if err != nil {
 		return fmt.Errorf("executable %s not found in package directory %s", executableWithoutWorkDir, err)
 	}
 
-	sysPackagePath := strings.TrimPrefix(newWorkDir, mountDir) + "/"
-	if !strings.HasPrefix(sysPackagePath, "/") {
-		sysPackagePath = "/" + sysPackagePath // Make sure to have an absolute path
+	newWorkDir := strings.TrimPrefix(newWorkDirWithMountDir, mountDir) + "/"
+	if !strings.HasPrefix(newWorkDir, "/") {
+		newWorkDir = "/" + newWorkDir // Make sure to have an absolute path
 	}
 
-	newExecutablePath := filepath.Join(sysPackagePath, executableWithoutWorkDir)
+	newExecutablePath := filepath.Join(newWorkDir, executableWithoutWorkDir)
 	newExecStartCommand := strings.ReplaceAll(execStart, originalExecutable, newExecutablePath)
+	newExecStartCommand = strings.ReplaceAll(newExecStartCommand, workingDir, newWorkDir)
 
 	log.Printf("Updated ExecStart path from: %s to: %s", execStart, newExecutablePath)
 
@@ -156,6 +165,9 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	return nil
 }
 
+// findExecutableInPath searches for the executable in the given path and package directory.
+// It returns the path where the executable is found or an error if not found.
+// Starting from the given path, it goes up the directory tree until it reaches the package directory.
 func findExecutableInPath(startPath, executable, packageDir string) (string, error) {
 	currentPath := startPath
 	for strings.HasPrefix(currentPath, packageDir) {
@@ -168,16 +180,18 @@ func findExecutableInPath(startPath, executable, packageDir string) (string, err
 	return "", fmt.Errorf("executable %s not found within package directory %s", executable, packageDir)
 }
 
+// createUnitOptionsSlice converts a map of unit options to a slice of unit options.
 func createUnitOptionsSlice(optsMap map[string]unit.UnitOption) []*unit.UnitOption {
 	var unitOptions []*unit.UnitOption
 	for _, opt := range optsMap {
-		optCopy := opt // create a copy to get a unique address
-		unitOptions = append(unitOptions, &optCopy)
+		//optCopy := opt // create a copy to get a unique address
+		unitOptions = append(unitOptions, &opt)
 	}
 	return unitOptions
 }
 
-func isServiceFileInConfig(serviceFile string, configServiceFiles []string) bool {
+// isServiceFileInList checks if the service file is listed in the slice.
+func isServiceFileInList(serviceFile string, configServiceFiles []string) bool {
 	for _, file := range configServiceFiles {
 		if file == filepath.Base(serviceFile) {
 			return true
