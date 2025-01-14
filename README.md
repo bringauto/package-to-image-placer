@@ -8,7 +8,7 @@ If the package contains any service files, they can be activated.
 
 For working with the image, the tool uses `libguestfs` to mount the image's filesystems.
 
-The tool supports interactive mode, which allows the user to select the package, target partition and the service files to activate.
+The tool supports interactive mode, which allows the user to select the package, target partition, and the service files to activate.
 Then it can generate a config file for the tool to use in non-interactive mode.
 
 ## Requirements
