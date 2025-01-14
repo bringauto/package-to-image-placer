@@ -57,7 +57,7 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 
 	populatedChan := make(chan error)
 	go func() {
-		populatedChan <- WaitUntilDirectoryIsPopulated(mountDir, timeout)
+		populatedChan <- waitUntilDirectoryIsPopulated(mountDir, timeout)
 	}()
 
 	select {
@@ -94,6 +94,14 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 		return err
 	}
 
+	if !AreAllServiceFromConfigPresent(serviceFiles, config.ServiceNames) {
+		baseServiceFiles := make([]string, len(serviceFiles))
+		for i, serviceFile := range serviceFiles {
+			baseServiceFiles[i] = filepath.Base(serviceFile)
+		}
+		return fmt.Errorf("not all services from the config are present in the package.\n\tFound services:  %v\n\tConfig services: %v\n", baseServiceFiles, config.ServiceNames)
+	}
+
 	for _, serviceFile := range serviceFiles {
 		if config.InteractiveRun {
 			if interaction.GetUserConfirmation(fmt.Sprintf("Do you want to activate service: %s", serviceFile)) {
@@ -103,12 +111,17 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 				}
 				config.ServiceNames = append(config.ServiceNames, filepath.Base(serviceFile))
 			}
-		} else if isServiceFileInList(serviceFile, config.ServiceNames) {
+		} else if IsServiceFileInList(serviceFile, config.ServiceNames) {
 			err = AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
 			if err != nil {
 				return fmt.Errorf("error while activating service: %v", err)
 			}
 		}
+	}
+
+	err = CheckRequiredServicesEnabled(mountDir, config.ServiceNames)
+	if err != nil {
+		return fmt.Errorf("error while checking required services: %v", err)
 	}
 
 	return nil
@@ -153,6 +166,7 @@ func mountPartition(targetImageName string, partitionNumber int, mountDir string
 func unmount(mountDir string) {
 	log.Printf("Unmounting partition")
 	RunCommand("guestunmount "+mountDir, true)
+	waitUntilDirectoryIsEmpty(mountDir, timeout)
 }
 
 // getArchiveSize calculates the total uncompressed size of the files in the zip archive.
@@ -277,12 +291,12 @@ func copyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	return nil
 }
 
-// WaitUntilDirectoryIsPopulated waits until the directory is populated or the timeout is reached.
+// waitUntilDirectoryIsPopulated waits until the directory is populated or the timeout is reached.
 // It returns an error if the directory is not populated within the timeout period.
-func WaitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error {
+func waitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error {
 	start := time.Now()
 	for {
-		populated, err := IsDirectoryPopulated(dirPath)
+		populated, err := isDirectoryPopulated(dirPath)
 		if err != nil {
 			return err
 		}
@@ -296,9 +310,28 @@ func WaitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error 
 	}
 }
 
-// IsDirectoryPopulated checks if the given directory is populated.
+// waitUntilDirectoryIsEmpty waits until the directory is empty or the timeout is reached.
+// Use to make sure directory is unmounted before proceeding.
+func waitUntilDirectoryIsEmpty(dirPath string, timeout time.Duration) {
+	start := time.Now()
+	for {
+		populated, err := isDirectoryPopulated(dirPath)
+		if err != nil {
+			log.Printf("Error checking directory: %v", err)
+		}
+		if !populated {
+			return
+		}
+		if time.Since(start) > timeout {
+			log.Printf("directory %s is not empty within the timeout period. Continuing", dirPath)
+		}
+		time.Sleep(100 * time.Millisecond) // Adjust the sleep duration as needed
+	}
+}
+
+// isDirectoryPopulated checks if the given directory is populated.
 // It returns true if the directory contains at least one file or subdirectory.
-func IsDirectoryPopulated(dirPath string) (bool, error) {
+func isDirectoryPopulated(dirPath string) (bool, error) {
 	dir, err := os.Open(dirPath)
 	if err != nil {
 		return false, fmt.Errorf("unable to open directory: %v", err)
