@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"package-to-image-placer/pkg/interaction"
+	"path/filepath"
 )
 
 type Configuration struct {
@@ -33,6 +34,11 @@ func CreateConfigurationFile(config Configuration) error {
 
 		file, err = os.Create(path)
 		if err != nil {
+			if os.IsNotExist(err) {
+				dir := filepath.Dir(path)
+				fmt.Printf("Error: Directory %s does not exist. Please create the directory and try again.\n", dir)
+				continue
+			}
 			fmt.Printf("Error creating file: %v. Please try again.\n", err)
 			continue
 		}

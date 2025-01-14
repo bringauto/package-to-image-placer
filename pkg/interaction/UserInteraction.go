@@ -1,6 +1,7 @@
 package interaction
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/diskfs/go-diskfs"
 	"github.com/diskfs/go-diskfs/filesystem"
@@ -200,12 +201,14 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 // ReadStringFromUser reads a string input from the user.
 // Returns the input string.
 func ReadStringFromUser() (string, error) {
-	var newDir string
-	_, err := fmt.Scanln(&newDir)
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("Enter path to save configuration file: ")
+	path, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
-	return newDir, nil
+	return strings.TrimSpace(path), nil
 }
 
 // getDirectories returns a list of directories in the provided path.
@@ -267,6 +270,19 @@ func SetUpCommandline() {
 	}
 	//do not cache characters
 	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
+	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
+}
+
+// CleanUpCommandLine reverts the terminal settings to their default state.
+func CleanUpCommandLine() {
+	log.Printf("Cleaning up command line...")
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		log.Printf("Warning: /dev/tty not available, skipping terminal cleanup")
+		return
+	}
+	// Reset terminal settings
+	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
+	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
 }
 
 // fuzzySelectOne presents a fuzzy finder to the user to select one item from a list.

@@ -19,7 +19,7 @@ func main() {
 
 	config, err := parseArguments(os.Args[1:])
 	if err != nil {
-		log.Fatalf("Error parsing arguments: %v", err)
+		log.Fatalf("Error parsing arguments: %v\n Use `-h` option to see usage.", err)
 	}
 
 	if config.InteractiveRun {
@@ -68,6 +68,7 @@ func main() {
 	log.Printf("All packages copied successfully\n")
 
 	if config.InteractiveRun && interaction.GetUserConfirmation("Do you want to save the configuration?") {
+		interaction.CleanUpCommandLine()
 		err = packagePlacer.CreateConfigurationFile(config)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
@@ -80,7 +81,7 @@ func parseArguments(args []string) (packagePlacer.Configuration, error) {
 	flags := flag.NewFlagSet("package-to-image-placer", flag.ContinueOnError)
 
 	configFile := flags.String("config", "", "Path to configuration file (non-interactive mode)")
-	targetImage := flags.String("target", "", "Target image path")
+	targetImage := flags.String("target", "", "Target image path (will be created).")
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
 	overwrite := flags.Bool("overwrite", false, "Overwrite files in target image")
