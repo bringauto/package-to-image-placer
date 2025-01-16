@@ -23,6 +23,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error parsing arguments: %v", err)
 	}
+	err = configuration.ValidateConfiguration(config)
+	if err != nil {
+		log.Fatalf("Configuration validation error: %v", err)
+	}
 
 	if config.InteractiveRun {
 		interaction.SetUpCommandline()
@@ -139,18 +143,6 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 		config.PackageDir = *packageDirectory
 	}
 
-	if config.Target == "" {
-		return config, fmt.Errorf("target image path is missing, start with -h to see arguments")
-	}
-	if config.Target == config.Source {
-		return config, fmt.Errorf("source and target image paths are the same")
-	}
-	if config.Source == "" && !config.NoClone {
-		return config, fmt.Errorf("Either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
-	}
-	if config.NoClone && !helper.DoesFileExists(config.Target) {
-		return config, fmt.Errorf("Target image does not exist\n")
-	}
 	config.InteractiveRun = interactiveRun
 	return config, nil
 }

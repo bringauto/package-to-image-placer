@@ -177,8 +177,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	if selectedDir == "Select current directory" {
 		return searchDir, nil
 	} else if selectedDir == "Create new directory" {
-		fmt.Print("Enter new directory name: ")
-		newDir, err := ReadStringFromUser()
+		newDir, err := ReadStringFromUser("Enter new directory name: ")
 		if err != nil {
 			return "", err
 		}
@@ -200,14 +199,16 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 
 // ReadStringFromUser reads a string input from the user.
 // Returns the input string.
-func ReadStringFromUser() (string, error) {
+func ReadStringFromUser(prompt string) (string, error) {
+	CleanUpCommandLineSilent()
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Printf("Enter path to save configuration file: ")
+	fmt.Printf(prompt)
 	path, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
+	setUpCommandLineSilent()
 	return strings.TrimSpace(path), nil
 }
 
@@ -273,6 +274,11 @@ func SetUpCommandline() {
 	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
 }
 
+func setUpCommandLineSilent() {
+	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
+	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
+}
+
 // CleanUpCommandLine reverts the terminal settings to their default state.
 func CleanUpCommandLine() {
 	log.Printf("Cleaning up command line...")
@@ -280,6 +286,12 @@ func CleanUpCommandLine() {
 		log.Printf("Warning: /dev/tty not available, skipping terminal cleanup")
 		return
 	}
+	// Reset terminal settings
+	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
+	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
+}
+
+func CleanUpCommandLineSilent() {
 	// Reset terminal settings
 	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
 	exec.Command("stty", "-F", "/dev/tty", "echo").Run()

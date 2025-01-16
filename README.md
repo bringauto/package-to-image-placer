@@ -54,6 +54,13 @@ For non-interactive mode, run:
 
 > Commandline arguments are overriding the config file values.
 
+#### Tests
+
+To run all tests, run:
+
+```bash
+go test ./...
+```
 
 ## Libguest installation
 

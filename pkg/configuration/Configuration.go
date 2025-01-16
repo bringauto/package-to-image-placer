@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"package-to-image-placer/pkg/helper"
 	"package-to-image-placer/pkg/interaction"
 	"path/filepath"
 )
@@ -27,7 +28,7 @@ func CreateConfigurationFile(config Configuration) error {
 
 	for {
 		fmt.Printf("Enter path to save configuration file: ")
-		path, err := interaction.ReadStringFromUser()
+		path, err := interaction.ReadStringFromUser("Enter path to save configuration file: ")
 		if err != nil {
 			return err
 		}
@@ -51,6 +52,39 @@ func CreateConfigurationFile(config Configuration) error {
 	err := encoder.Encode(config)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func ValidateConfiguration(config Configuration) error {
+	if config.Target == "" {
+		return fmt.Errorf("target image path is missing, start with -h to see arguments")
+	}
+	if config.Target == config.Source {
+		return fmt.Errorf("source and target image paths are the same")
+	}
+	if config.Source == "" && !config.NoClone {
+		return fmt.Errorf("Either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
+	} else if !config.NoClone && !helper.DoesFileExists(config.Source) {
+		return fmt.Errorf("Source image path does not exist\n")
+	}
+	if config.NoClone && !helper.DoesFileExists(config.Target) {
+		return fmt.Errorf("Target image does not exist\n")
+	}
+
+	if !config.InteractiveRun {
+		if len(config.Packages) == 0 {
+			return fmt.Errorf("no packages defined in configuration") // TODO check if packages exist
+		}
+		if len(config.PartitionNumbers) == 0 {
+			return fmt.Errorf("no partition numbers defined in configuration")
+		}
+		if config.TargetDirectory == "" {
+			return fmt.Errorf("no target directory defined in configuration")
+		}
+		if len(config.ServiceNames) == 0 {
+			return fmt.Errorf("no service names defined in configuration")
+		}
 	}
 	return nil
 }
