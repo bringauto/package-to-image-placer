@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	packagePlacer "package-to-image-placer/pkg"
+	"package-to-image-placer/pkg/configuration"
+	"package-to-image-placer/pkg/helper"
+	"package-to-image-placer/pkg/image"
 	"package-to-image-placer/pkg/interaction"
 )
 
 func main() {
-	err := packagePlacer.AllDepsInstalled()
+	err := helper.AllDepsInstalled()
 	if err != nil {
 		log.Printf("Error: %s\n", err)
 		os.Exit(1)
@@ -19,7 +21,7 @@ func main() {
 
 	config, err := parseArguments(os.Args[1:])
 	if err != nil {
-		log.Fatalf("Error parsing arguments: %v\n Use `-h` option to see usage.", err)
+		log.Fatalf("Error parsing arguments: %v", err)
 	}
 
 	if config.InteractiveRun {
@@ -37,7 +39,7 @@ func main() {
 	log.Printf("Packages to copy: %s\n", config.Packages)
 
 	if !config.NoClone {
-		if packagePlacer.DoesFileExists(config.Target) {
+		if helper.DoesFileExists(config.Target) {
 			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
 			if config.InteractiveRun && !interaction.GetUserConfirmation(askUser) {
 				log.Fatalf("file already exists and user chose not to delete it")
@@ -46,7 +48,7 @@ func main() {
 				log.Fatalf("unable to delete existing file: %s", err)
 			}
 		}
-		err := packagePlacer.CloneImage(config.Source, config.Target)
+		err := image.CloneImage(config.Source, config.Target)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 			return
@@ -59,7 +61,7 @@ func main() {
 			log.Printf("Error while selecting partitions: %s\n", err)
 		}
 	}
-	err = packagePlacer.CopyPackageToImagePartitions(&config)
+	err = image.CopyPackageToImagePartitions(&config)
 	if err != nil {
 		log.Printf("Error: %s\n", err)
 		return
@@ -69,15 +71,15 @@ func main() {
 
 	if config.InteractiveRun && interaction.GetUserConfirmation("Do you want to save the configuration?") {
 		interaction.CleanUpCommandLine()
-		err = packagePlacer.CreateConfigurationFile(config)
+		err = configuration.CreateConfigurationFile(config)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 		}
 	}
 }
 
-func parseArguments(args []string) (packagePlacer.Configuration, error) {
-	var config packagePlacer.Configuration
+func parseArguments(args []string) (configuration.Configuration, error) {
+	var config configuration.Configuration
 	flags := flag.NewFlagSet("package-to-image-placer", flag.ContinueOnError)
 
 	configFile := flags.String("config", "", "Path to configuration file (non-interactive mode)")
@@ -146,7 +148,7 @@ func parseArguments(args []string) (packagePlacer.Configuration, error) {
 	if config.Source == "" && !config.NoClone {
 		return config, fmt.Errorf("Either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
 	}
-	if config.NoClone && !packagePlacer.DoesFileExists(config.Target) {
+	if config.NoClone && !helper.DoesFileExists(config.Target) {
 		return config, fmt.Errorf("Target image does not exist\n")
 	}
 	config.InteractiveRun = interactiveRun

@@ -1,4 +1,4 @@
-package package_to_image_placer
+package image
 
 import (
 	"archive/zip"
@@ -8,7 +8,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"package-to-image-placer/pkg/configuration"
+	"package-to-image-placer/pkg/helper"
 	"package-to-image-placer/pkg/interaction"
+	"package-to-image-placer/pkg/service"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -19,7 +22,7 @@ const timeout = 60 * time.Second
 
 // CopyPackageToImagePartitions copies the specified packages to the specified partitions in the configuration.
 // It iterates over each partition and package, calling MountPartitionAndCopyPackage for each combination.
-func CopyPackageToImagePartitions(config *Configuration) error {
+func CopyPackageToImagePartitions(config *configuration.Configuration) error {
 	for _, partition := range config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
 		for _, archive := range config.Packages {
@@ -34,7 +37,7 @@ func CopyPackageToImagePartitions(config *Configuration) error {
 
 // MountPartitionAndCopyPackage mounts the specified partition, copies the package to it, and activates any service files found in the package.
 // It handles signals for unmounting the partition and ensures the directory is populated before proceeding.
-func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, config *Configuration) error {
+func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, config *configuration.Configuration) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -94,7 +97,7 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 		return err
 	}
 
-	if !AreAllServiceFromConfigPresent(serviceFiles, config.ServiceNames) {
+	if !service.AreAllServiceFromConfigPresent(serviceFiles, config.ServiceNames) {
 		baseServiceFiles := make([]string, len(serviceFiles))
 		for i, serviceFile := range serviceFiles {
 			baseServiceFiles[i] = filepath.Base(serviceFile)
@@ -105,21 +108,21 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 	for _, serviceFile := range serviceFiles {
 		if config.InteractiveRun {
 			if interaction.GetUserConfirmation(fmt.Sprintf("Do you want to activate service: %s", serviceFile)) {
-				err = AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
+				err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
 				if err != nil {
 					return fmt.Errorf("error while activating service: %v", err)
 				}
 				config.ServiceNames = append(config.ServiceNames, filepath.Base(serviceFile))
 			}
-		} else if IsServiceFileInList(serviceFile, config.ServiceNames) {
-			err = AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
+		} else if service.IsServiceFileInList(serviceFile, config.ServiceNames) {
+			err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
 			if err != nil {
 				return fmt.Errorf("error while activating service: %v", err)
 			}
 		}
 	}
 
-	err = CheckRequiredServicesEnabled(mountDir, config.ServiceNames)
+	err = service.CheckRequiredServicesEnabled(mountDir, config.ServiceNames)
 	if err != nil {
 		return fmt.Errorf("error while checking required services: %v", err)
 	}
@@ -155,7 +158,7 @@ func mountPartition(targetImageName string, partitionNumber int, mountDir string
 	log.Printf("Mounting partition to %s", mountDir)
 	// TODO set userId in config??
 	cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
-	_, err := RunCommand(cmd, false)
+	_, err := helper.RunCommand(cmd, false)
 	if err != nil {
 		errChan <- err.Error()
 	}
@@ -165,7 +168,7 @@ func mountPartition(targetImageName string, partitionNumber int, mountDir string
 // unmount unmounts the specified mount directory using guestunmount.
 func unmount(mountDir string) {
 	log.Printf("Unmounting partition")
-	RunCommand("guestunmount "+mountDir, true)
+	helper.RunCommand("guestunmount "+mountDir, true)
 	waitUntilDirectoryIsEmpty(mountDir, timeout)
 }
 
@@ -244,7 +247,7 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool
 	}
 	defer srcFile.Close()
 
-	destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY, srcZipFile.Mode())
+	destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcZipFile.Mode())
 	if err != nil {
 		return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
 	}
@@ -253,34 +256,6 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool
 	_, err = io.Copy(destFile, srcFile)
 	if err != nil {
 		return fmt.Errorf("unable to copy file %s: %v", srcZipFile.Name, err)
-	}
-	// TODO do we want to change permissions if the file already exists?
-	// Set the file permissions
-	//err = os.Chmod(destFilePath, fileMode)
-	//if err != nil {
-	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
-	//}
-	return nil
-}
-
-// copyFile copies a file from the source path to the destination path with the specified file mode.
-// It returns an error if the file cannot be opened or created.
-func copyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
-	srcFile, err := os.Open(srcFilePath)
-	if err != nil {
-		return fmt.Errorf("unable to open file %s: %v", srcFilePath, err)
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY, fileMode)
-	if err != nil {
-		return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("unable to copy file %s: %v", srcFilePath, err)
 	}
 	// TODO do we want to change permissions if the file already exists?
 	// Set the file permissions

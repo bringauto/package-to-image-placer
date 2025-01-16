@@ -1,4 +1,4 @@
-package package_to_image_placer
+package service
 
 import (
 	"fmt"
@@ -6,13 +6,18 @@ import (
 	"io"
 	"log"
 	"os"
+	"package-to-image-placer/pkg/helper"
 	"path/filepath"
 	"strings"
 )
 
-// AddService adds a service file to the image, update paths in it and activates it
+// AddService adds the serviceFile to /etc/systemd/system in image
+// update paths based on packageDir (removes mountDir prefix) in it and activates the service.
 // It returns an error if the service file is missing required fields: ExecStart, Type, User, RestartSec, WorkingDirectory
 // or if the service file has a Type other than 'simple' or WantedBy other than 'multi-user.target'
+// serviceFile: full path to the service file in the target image
+// mountDir: path to the target image mount point
+// packageDir: path to the package directory in the target image
 func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool) error {
 	log.Printf("Activating service %s", filepath.Base(serviceFile))
 	opts, err := parseServiceFile(serviceFile)
@@ -55,7 +60,7 @@ func activateService(mountDir string, serviceFile string, overwrite bool) (strin
 			return "", fmt.Errorf("service symlink already exists: '%s'... Use -overwrite to overwrite the symlink", symlinkPath)
 		}
 	}
-	err := copyFile(destPath, serviceFile, 0644)
+	err := helper.CopyFile(destPath, serviceFile, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to copy service file: %v", err)
 	}
@@ -78,6 +83,9 @@ func writeOptsToFile(serviceFile string, opts map[string]unit.UnitOption) error 
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		return fmt.Errorf("failed to write updated options to service file: %v", err)
+	}
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("failed to flush data to service file: %v", err)
 	}
 	return nil
 }
@@ -141,12 +149,12 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	execOpt := optsMap["ExecStart"]
 	execStart := execOpt.Value
 
-	originalExecutable := strings.Trim(splitStringPreserveSubstrings(execStart)[0], "'\"")
+	originalExecutable := strings.Trim(helper.SplitStringPreserveSubstrings(execStart)[0], "'\"")
 	executableWithoutWorkDir := strings.TrimPrefix(originalExecutable, workingDir)
 
 	newWorkDirWithMountDir, err := findExecutableInPath(filepath.Dir(serviceFile), executableWithoutWorkDir, packageDir)
 	if err != nil {
-		return fmt.Errorf("executable %s not found in package directory %s", executableWithoutWorkDir, err)
+		return fmt.Errorf("unable to find executable %s: %s", executableWithoutWorkDir, err)
 	}
 
 	newWorkDir := strings.TrimPrefix(newWorkDirWithMountDir, mountDir) + "/"
@@ -177,15 +185,39 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 // It returns the path where the executable is found or an error if not found.
 // Starting from the given path, it goes up the directory tree until it reaches the package directory.
 func findExecutableInPath(startPath, executable, packageDir string) (string, error) {
-	currentPath := startPath
-	for strings.HasPrefix(currentPath, packageDir) {
+	var searchInPath func(string, bool) (string, error)
+	searchInPath = func(currentPath string, recursive bool) (string, error) {
+		if !strings.HasPrefix(currentPath+"/", packageDir) {
+			return "", fmt.Errorf("executable %s not found within package directory %s", executable, packageDir)
+		}
+
+		// Check if the executable exists in the current directory
 		potentialPath := filepath.Join(currentPath, executable)
 		if _, err := os.Stat(potentialPath); err == nil {
 			return currentPath, nil
 		}
-		currentPath = filepath.Dir(currentPath)
+
+		// Recursively search in subdirectories
+		if recursive {
+			files, err := os.ReadDir(currentPath)
+			if err != nil {
+				return "", fmt.Errorf("error reading directory %s: %v", currentPath, err)
+			}
+			for _, file := range files {
+				if file.IsDir() {
+					foundPath, err := searchInPath(filepath.Join(currentPath, file.Name()), true)
+					if err == nil {
+						return foundPath, nil
+					}
+				}
+			}
+		}
+
+		// Move up one directory and continue searching
+		return searchInPath(filepath.Dir(currentPath), false)
 	}
-	return "", fmt.Errorf("executable %s not found within package directory %s", executable, packageDir)
+
+	return searchInPath(startPath, true)
 }
 
 // createUnitOptionsSlice converts a map of unit options to a slice of unit options.
@@ -300,5 +332,5 @@ func parseRequiredOption(serviceFile string) ([]string, error) {
 	if !exists {
 		return nil, nil // no Requires option
 	}
-	return splitStringPreserveSubstrings(requiresOpt.Value), nil
+	return helper.SplitStringPreserveSubstrings(requiresOpt.Value), nil
 }

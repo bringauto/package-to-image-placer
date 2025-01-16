@@ -1,4 +1,4 @@
-package package_to_image_placer
+package image
 
 import (
 	"fmt"
