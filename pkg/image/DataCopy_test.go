@@ -1,17 +1,44 @@
 package image
 
 import (
+	"os"
 	"package-to-image-placer/pkg/configuration"
+	"package-to-image-placer/pkg/helper"
 	"testing"
 )
 
 const exampleArchive = "../../testdata/archives/example.zip"
 const partitionNumber = 1
+const testImage = "../../testdata/testImage.img"
+
+func TestMain(m *testing.M) {
+	// Setup code here
+	setup()
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup code here
+	cleanup()
+
+	// Exit with the code from m.Run()
+	os.Exit(code)
+}
+
+func setup() {
+	err := helper.CopyFile(testImage, testImage+".in", 0666)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func cleanup() {
+	os.Remove(testImage)
+}
 
 func createDefaultConfig() configuration.Configuration {
 	return configuration.Configuration{
-		Source:           "../../testdata/testImage.img",
-		Target:           "../../testdata/testImage.img",
+		Target:           testImage,
 		NoClone:          false,
 		Packages:         []string{},
 		PartitionNumbers: []int{1},
