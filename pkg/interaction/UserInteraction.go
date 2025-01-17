@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"package-to-image-placer/pkg/helper"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -153,7 +154,7 @@ func SelectPartitions(diskPath string) ([]int, error) {
 // Returns the selected directory.
 func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	// Validate that searchDir is within the rootDir
-	if !isWithinRoot(rootDir, searchDir) {
+	if !helper.IsWithinRootDir(rootDir, searchDir) {
 		return "", fmt.Errorf("attempt to navigate outside the allowed root directory")
 	}
 
@@ -182,7 +183,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 			return "", err
 		}
 		newDirPath := filepath.Join(searchDir, newDir)
-		if !isWithinRoot(rootDir, newDirPath) {
+		if !helper.IsWithinRootDir(rootDir, newDirPath) {
 			return "", fmt.Errorf("attempt to create directory outside of root directory")
 		}
 		err = os.Mkdir(newDirPath, 0755)
@@ -230,22 +231,6 @@ func getDirectories(path string, rootDir string) ([]string, error) {
 	}
 
 	return dirs, nil
-}
-
-// isWithinRoot checks if the targetPath is within rootDir.
-func isWithinRoot(rootDir, targetPath string) bool {
-	// Clean paths to normalize
-	rootDir = filepath.Clean(rootDir)
-	targetPath = filepath.Clean(targetPath)
-
-	// Get the relative path
-	rel, err := filepath.Rel(rootDir, targetPath)
-	if err != nil {
-		return false
-	}
-
-	// Check if the relative path does not escape the root
-	return !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
 }
 
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.

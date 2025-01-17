@@ -76,14 +76,13 @@ func ValidateConfiguration(config Configuration) error {
 		if len(config.Packages) == 0 {
 			return fmt.Errorf("no packages defined in configuration") // TODO check if packages exist
 		}
+		for _, packagePath := range config.Packages {
+			if !helper.DoesFileExists(packagePath) {
+				return fmt.Errorf("package %s does not exist", packagePath)
+			}
+		}
 		if len(config.PartitionNumbers) == 0 {
 			return fmt.Errorf("no partition numbers defined in configuration")
-		}
-		if config.TargetDirectory == "" {
-			return fmt.Errorf("no target directory defined in configuration")
-		}
-		if len(config.ServiceNames) == 0 {
-			return fmt.Errorf("no service names defined in configuration")
 		}
 	}
 	return nil

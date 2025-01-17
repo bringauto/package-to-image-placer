@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -78,6 +79,22 @@ func CopyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
 	//}
 	return nil
+}
+
+// IsWithinRootDir checks if the targetPath is within rootDir.
+func IsWithinRootDir(rootDir, targetPath string) bool {
+	// Clean paths to normalize
+	rootDir = filepath.Clean(rootDir)
+	targetPath = filepath.Clean(targetPath)
+
+	// Get the relative path
+	rel, err := filepath.Rel(rootDir, targetPath)
+	if err != nil {
+		return false
+	}
+
+	// Check if the relative path does not escape the root
+	return !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
 }
 
 // RunCommand runs a command. Returns stdout. If error occurs, returns also stderr.

@@ -92,6 +92,10 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 		targetDirectoryFullPath = filepath.Join(mountDir, config.TargetDirectory)
 	}
 
+	if !helper.IsWithinRootDir(mountDir, targetDirectoryFullPath) {
+		return fmt.Errorf("target directory is not within the mounted partition")
+	}
+
 	serviceFiles, err := handleArchive(archivePath, mountDir, targetDirectoryFullPath, config.Overwrite)
 	if err != nil {
 		return err
