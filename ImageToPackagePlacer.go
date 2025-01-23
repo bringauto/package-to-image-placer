@@ -30,6 +30,7 @@ func main() {
 
 	if config.InteractiveRun {
 		interaction.SetUpCommandline()
+		defer interaction.CleanUpCommandLine()
 		config.Packages, err = interaction.SelectFilesInDir(config.PackageDir)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
@@ -74,7 +75,6 @@ func main() {
 	log.Printf("All packages copied successfully\n")
 
 	if config.InteractiveRun && interaction.GetUserConfirmation("Do you want to save the configuration?") {
-		interaction.CleanUpCommandLine()
 		err = configuration.CreateConfigurationFile(config)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
