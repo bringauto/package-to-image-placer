@@ -97,7 +97,7 @@ func (imageCreator imageCreator) copyPartitionData() error {
 		return err
 	}
 	for index, p := range sourcePartitionTable.GetPartitions() {
-		log.Printf("Writing to %d partition: %s", index+1, p.UUID())
+		log.Printf("Writing to partition  %d: %s", index+1, p.UUID())
 
 		tmpFile, err := os.CreateTemp("", "partition_data_*.tmp")
 		if err != nil {

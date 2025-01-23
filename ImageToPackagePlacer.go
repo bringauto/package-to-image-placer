@@ -1,4 +1,4 @@
-package package_to_image_placer
+package main
 
 import (
 	"encoding/json"
@@ -28,6 +28,7 @@ func main() {
 		log.Fatalf("Configuration validation error: %v", err)
 	}
 
+	newConfigFilePath := ""
 	if config.InteractiveRun {
 		interaction.SetUpCommandline()
 		defer interaction.CleanUpCommandLine()
@@ -36,12 +37,28 @@ func main() {
 			log.Printf("Error: %s\n", err)
 			return
 		}
+
+		imagePath := ""
+		if config.NoClone {
+			imagePath = config.Target
+		} else {
+			imagePath = config.Source
+		}
+		config.PartitionNumbers, err = interaction.SelectPartitions(imagePath)
+		if err != nil {
+			log.Printf("Error while selecting partitions: %s\n", err)
+		}
+
+		if interaction.GetUserConfirmation("\nDo you want to save the configuration?") {
+			newConfigFilePath, err = configuration.CreateConfigurationFile(config)
+			if err != nil {
+				log.Printf("Error: %s\n", err)
+			}
+		}
+
 	}
-	if len(config.Packages) == 0 {
-		log.Printf("No files selected\n")
-		return
-	}
-	log.Printf("Packages to copy: %s\n", config.Packages)
+
+	log.Printf("Packages: %v\nwill be copied to partitions: %v\n", config.Packages, config.PartitionNumbers)
 
 	if !config.NoClone {
 		if helper.DoesFileExists(config.Target) {
@@ -60,12 +77,6 @@ func main() {
 		}
 	}
 
-	if config.InteractiveRun {
-		config.PartitionNumbers, err = interaction.SelectPartitions(config.Target)
-		if err != nil {
-			log.Printf("Error while selecting partitions: %s\n", err)
-		}
-	}
 	err = image.CopyPackageToImagePartitions(&config)
 	if err != nil {
 		log.Printf("Error: %s\n", err)
@@ -74,8 +85,8 @@ func main() {
 
 	log.Printf("All packages copied successfully\n")
 
-	if config.InteractiveRun && interaction.GetUserConfirmation("Do you want to save the configuration?") {
-		err = configuration.CreateConfigurationFile(config)
+	if newConfigFilePath != "" {
+		err = configuration.UpdateConfigurationFile(config, newConfigFilePath)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 		}

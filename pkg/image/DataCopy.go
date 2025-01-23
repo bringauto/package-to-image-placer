@@ -90,6 +90,10 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 		config.TargetDirectory = strings.TrimPrefix(targetDirectoryFullPath, mountDir) + "/"
 	} else {
 		targetDirectoryFullPath = filepath.Join(mountDir, config.TargetDirectory)
+		err := os.MkdirAll(targetDirectoryFullPath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("failed to create target directory: %v", err)
+		}
 	}
 
 	if !helper.IsWithinRootDir(mountDir, targetDirectoryFullPath) {
@@ -111,7 +115,7 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 
 	for _, serviceFile := range serviceFiles {
 		if config.InteractiveRun {
-			if interaction.GetUserConfirmation(fmt.Sprintf("Do you want to activate service: %s", serviceFile)) {
+			if interaction.GetUserConfirmation(fmt.Sprintf("\nDo you want to activate service: %s", serviceFile)) {
 				err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
 				if err != nil {
 					return fmt.Errorf("error while activating service: %v", err)

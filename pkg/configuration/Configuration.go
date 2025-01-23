@@ -3,6 +3,7 @@ package configuration
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"package-to-image-placer/pkg/helper"
 	"package-to-image-placer/pkg/interaction"
@@ -23,14 +24,15 @@ type Configuration struct {
 }
 
 // CreateConfigurationFile Creates a file and places the configuration in form of a JSON string
-func CreateConfigurationFile(config Configuration) error {
+func CreateConfigurationFile(config Configuration) (string, error) {
 	var file *os.File
+	var path string
+	var err error
 
 	for {
-		fmt.Printf("Enter path to save configuration file: ")
-		path, err := interaction.ReadStringFromUser("Enter path to save configuration file: ")
+		path, err = interaction.ReadStringFromUser("Enter path to save configuration file: ")
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		file, err = os.Create(path)
@@ -49,7 +51,24 @@ func CreateConfigurationFile(config Configuration) error {
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "\t")
-	err := encoder.Encode(config)
+	err = encoder.Encode(config)
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func UpdateConfigurationFile(config Configuration, path string) error {
+	log.Printf("Updating configuration file %s\n", path)
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "\t")
+	err = encoder.Encode(config)
 	if err != nil {
 		return err
 	}

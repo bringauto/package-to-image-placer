@@ -16,6 +16,9 @@ import (
 	"strings"
 )
 
+const interactionTextColor = "\033[1;36m"
+const colorReset = "\033[0m"
+
 // SelectFilesInDir allows the user to select multiple files in a directory.
 // It repeatedly prompts the user to select files until they choose to stop.
 // Returns a slice of selected file paths.
@@ -32,10 +35,21 @@ func SelectFilesInDir(dir string) ([]string, error) {
 			return nil, err
 		}
 		selectedFiles = append(selectedFiles, selectedFile)
+		printSelectedPackages(selectedFiles)
 		chooseAnotherFile = GetUserConfirmation("Do you want to select another file?")
 	}
 	selectedFiles = removeDuplicates(selectedFiles).([]string)
+	if len(selectedFiles) == 0 {
+		return nil, fmt.Errorf("no partitions selected")
+	}
 	return selectedFiles, nil
+}
+
+func printSelectedPackages(selectedPackages []string) {
+	fmt.Printf("\nCurrently selected:\n")
+	for _, file := range selectedPackages {
+		fmt.Printf("\t%s\n", file)
+	}
 }
 
 // getDirsAndZips returns a list of directories and zip files in the specified directory.
@@ -143,10 +157,21 @@ func SelectPartitions(diskPath string) ([]int, error) {
 		}
 		partitionsNumbers = append(partitionsNumbers, allPartitions[selectedPartitionIndex].partitionNumber)
 
+		printSelectedPartitions(partitionsNumbers)
 		chooseAnotherFile = GetUserConfirmation("Do you want to select another partition?")
 	}
 	partitionsNumbers = removeDuplicates(partitionsNumbers).([]int)
+	if len(partitionsNumbers) == 0 {
+		return nil, fmt.Errorf("no partitions selected")
+	}
 	return partitionsNumbers, nil
+}
+
+func printSelectedPartitions(selectedPartitions []int) {
+	fmt.Printf("\nCurrently selected partitions:\n")
+	for _, partition := range selectedPartitions {
+		fmt.Printf("\tPartition %d\n", partition)
+	}
 }
 
 // SelectTargetDirectory allows the user to select a directory to copy the package to.
@@ -167,7 +192,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	// Add options for current directory and creating a new directory
 	dirs = append([]string{"Select current directory", "Create new directory"}, dirs...)
 
-	header := "Select directory to copy package to. Press esc to quit.\nCurrent directory: " + searchDir + "\n"
+	header := "Select directory to copy package to. Press esc to quit.\nCurrent directory: \033[1;34m" + searchDir + "\n"
 	idx, err := fuzzySelectOne(header, dirs)
 	if err != nil {
 		return "", err
@@ -186,7 +211,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 		if !helper.IsWithinRootDir(rootDir, newDirPath) {
 			return "", fmt.Errorf("attempt to create directory outside of root directory")
 		}
-		err = os.Mkdir(newDirPath, 0755)
+		err = os.MkdirAll(newDirPath, 0755)
 		if err != nil {
 			return "", err
 		}
@@ -204,7 +229,7 @@ func ReadStringFromUser(prompt string) (string, error) {
 	CleanUpCommandLineSilent()
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Printf(prompt)
+	fmt.Printf(interactionTextColor + prompt + colorReset)
 	path, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
@@ -237,7 +262,7 @@ func getDirectories(path string, rootDir string) ([]string, error) {
 // Returns true if the user confirms, false otherwise.
 func GetUserConfirmation(message string) bool {
 	var b = make([]byte, 1)
-	fmt.Print(message + " [Y|y to confirm, any other key to cancel]\n")
+	fmt.Print(interactionTextColor + message + colorReset + " [Y|y to confirm, any other key to cancel]\n")
 	_, err := os.Stdin.Read(b)
 	if err != nil {
 		return false
