@@ -19,8 +19,6 @@ func TestAddService_Success(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	println("\n\nzkouska\n")
-	println(serviceFile)
 	err = AddService(serviceFile, mountDir, packageDir, overwrite)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
