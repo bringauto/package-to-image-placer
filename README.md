@@ -1,12 +1,13 @@
 # Package To Image Placer
 
-This tool is used to place a package into a system image. It is used to create a disk image with a package installed.
+This tool is used to place a package into a system image without the need to use `sudo`.
+It is used to create a disk image with a package installed.
 This way the target system can be used with new packages without the need to generate a whole image and know yocto.
 
 It takes a package (archive) and a system image (disk image) as input and creates a new disk image with the package.
 If the package contains any service files, they can be activated.
 
-For working with the image, the tool uses `libguestfs` to mount the image's filesystems.
+For working with the image, the tool uses `libguestfs` to mount the image's filesystems. This way, the tool can work with the image without root permissions.
 
 The tool supports interactive mode, which allows the user to select the package, target partition, and the service files to activate.
 Then it can generate a config file for the tool to use in non-interactive mode.
@@ -70,23 +71,21 @@ Libquestfs is a library for modifying disk images. It is used to mount the disk 
 
 ```bash
 sudo apt-get install libguestfs-tools
+
+# Add user kernel, which can be accessed without sudo. Other option is to give permissions to the existing kernel.
+apt-get download linux-image-$(uname -r)
+dpkg-deb -x linux-image-$(uname -r)*.deb ./
+export SUPERMIN_KERNEL=./boot/vmlinuz-image-$(uname -r)
 ```
 
-This will install the tools, but it needs read access to the kernel (e.g. `/boot/vmlinuz-*`) image. You can either
-create a new kernel image, that `supermin` will use, or give read access to the existing one.
+`install libguestfs-tools` will install the tools, but it needs read access to the kernel (e.g. `/boot/vmlinuz-*`) image. 
+You can either create a new kernel image, that `supermin` will use (as shown above), or give read access to the existing one.
 To test functionality or to find the used kernel image, run:
 
 ```bash
 libguestfs-test-tool
 ```
 
-Creating a new kernel image:
-
-```bash
-apt-get download linux-image-$(uname -r)
-dpkg-deb -x linux-image-$(uname -r)*.deb ./
-export SUPERMIN_KERNEL=./boot/vmlinuz-image-$(uname -r)
-```
 
 ### Fedora
 

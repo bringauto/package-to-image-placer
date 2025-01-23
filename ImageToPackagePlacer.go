@@ -1,4 +1,4 @@
-package main
+package package_to_image_placer
 
 import (
 	"encoding/json"

@@ -8,9 +8,9 @@ import (
 )
 
 func TestAddService_Success(t *testing.T) {
-	serviceFile := "../../testdata/service-mount/package/valid.service"
-	mountDir := "../../testdata/service-mount"
-	packageDir := "../../testdata/service-mount/package"
+	serviceFile, _ := filepath.Abs("../../testdata/service-mount/package/valid.service")
+	mountDir, _ := filepath.Abs("../../testdata/service-mount")
+	packageDir, _ := filepath.Abs("../../testdata/service-mount/package")
 	overwrite := true
 
 	// Renew service file. That will be changed during test
@@ -19,6 +19,8 @@ func TestAddService_Success(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	println("\n\nzkouska\n")
+	println(serviceFile)
 	err = AddService(serviceFile, mountDir, packageDir, overwrite)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

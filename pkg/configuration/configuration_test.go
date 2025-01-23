@@ -1,12 +1,39 @@
 package configuration
 
 import (
+	"os"
+	"package-to-image-placer/pkg/helper"
 	"testing"
 )
 
 const package1 = "../../testdata/archives/example.zip"
 const package2 = "../../testdata/archives/tooBig.zip"
 const sourceImg = "../../testdata/testImage.img"
+
+func TestMain(m *testing.M) {
+	// Setup code here
+	setup()
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup code here
+	cleanup()
+
+	// Exit with the code from m.Run()
+	os.Exit(code)
+}
+
+func setup() {
+	err := helper.CopyFile(sourceImg, sourceImg+".in", 0666)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func cleanup() {
+	os.Remove(sourceImg)
+}
 
 func TestValidateConfiguration_Success(t *testing.T) {
 	config := Configuration{
