@@ -27,7 +27,7 @@ func AddService(serviceFile string, mountDir string, packageDir string, overwrit
 
 	err = checkServiceFileContent(opts)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid service file: %s\n%v", serviceFile, err)
 	}
 
 	err = updatePathsInServiceFile(opts, mountDir, packageDir, serviceFile)
@@ -94,12 +94,14 @@ var requiredFields = []string{"ExecStart", "Type", "User", "RestartSec", "Workin
 
 // checkAndParseServiceFileContent checks presence and value of required fields and parses the content.
 func checkServiceFileContent(optsMap map[string]unit.UnitOption) error {
-	var allFieldsPresent = true
+	var missingFields []string
 	for _, field := range requiredFields {
 		if _, fieldPresent := optsMap[field]; !fieldPresent {
-			allFieldsPresent = false
-			log.Printf("Required field %s is missing in file %s\n", field, optsMap)
+			missingFields = append(missingFields, field)
 		}
+	}
+	if len(missingFields) > 0 {
+		return fmt.Errorf("missing required fields: %v", strings.Join(missingFields, ", "))
 	}
 
 	if optsMap["Type"].Value != "simple" {
@@ -107,10 +109,6 @@ func checkServiceFileContent(optsMap map[string]unit.UnitOption) error {
 	}
 	if optsMap["WantedBy"].Value != "multi-user.target" {
 		return fmt.Errorf("only services with 'WantedBy=multi-user.target' are supported")
-	}
-
-	if !allFieldsPresent {
-		return fmt.Errorf("required fields are missing in service file %s", optsMap)
 	}
 
 	return nil

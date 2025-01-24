@@ -19,6 +19,7 @@ type Configuration struct {
 	TargetDirectory  string   `json:"target-directory"`
 	ServiceNames     []string `json:"service-names"`
 	Overwrite        bool     `json:"overwrite"`
+	LogPath          string   `json:"log-path"`
 	InteractiveRun   bool     `json:"-"`
 	PackageDir       string   `json:"-"`
 }
@@ -103,6 +104,10 @@ func ValidateConfiguration(config Configuration) error {
 		if len(config.PartitionNumbers) == 0 {
 			return fmt.Errorf("no partition numbers defined in configuration")
 		}
+	}
+
+	if !helper.DoesFileExists(config.LogPath) {
+		return fmt.Errorf("log path does not exist")
 	}
 	return nil
 }

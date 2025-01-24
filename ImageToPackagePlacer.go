@@ -4,21 +4,18 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"package-to-image-placer/pkg/configuration"
 	"package-to-image-placer/pkg/helper"
 	"package-to-image-placer/pkg/image"
 	"package-to-image-placer/pkg/interaction"
+	"path/filepath"
+	"strings"
 )
 
 func main() {
-	err := helper.AllDepsInstalled()
-	if err != nil {
-		log.Printf("Error: %s\n", err)
-		os.Exit(1)
-	}
-
 	config, err := parseArguments(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Error parsing arguments: %v", err)
@@ -26,6 +23,17 @@ func main() {
 	err = configuration.ValidateConfiguration(config)
 	if err != nil {
 		log.Fatalf("Configuration validation error: %v", err)
+	}
+	logFile, err := setupLogFile(config.LogPath)
+	if err != nil {
+		log.Fatalf("Error setting up log file: %v", err)
+	}
+	defer closeLogFile(logFile)
+
+	err = helper.AllDepsInstalled()
+	if err != nil {
+		log.Printf("Error: %s\n", err)
+		os.Exit(1)
 	}
 
 	newConfigFilePath := ""
@@ -58,7 +66,11 @@ func main() {
 
 	}
 
-	log.Printf("Packages: %v\nwill be copied to partitions: %v\n", config.Packages, config.PartitionNumbers)
+	log.Printf("Packages: %v\n\twill be copied to partitions: %v\n", strings.Join(config.Packages, ", "), config.PartitionNumbers)
+	if config.InteractiveRun && !interaction.GetUserConfirmation("Do you want to continue?") {
+		log.Printf("Operation cancelled by user\n")
+		return
+	}
 
 	if !config.NoClone {
 		if helper.DoesFileExists(config.Target) {
@@ -104,6 +116,7 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 	overwrite := flags.Bool("overwrite", false, "Overwrite files in target image")
 	targetDirectory := flags.String("target-dir", "", "Target directory in image (non-interactive mode)")
 	packageDirectory := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
+	logPath := flags.String("log-path", "./", "Path to log file")
 	showUsage := flags.Bool("h", false, "Show usage")
 
 	err := flags.Parse(args)
@@ -141,19 +154,30 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 	if *targetImage != "" {
 		config.Target = *targetImage
 	}
-	if *overwrite {
-		config.Overwrite = *overwrite
-	}
+	//if *overwrite {
+	config.Overwrite = *overwrite
+	//}
 	if *targetDirectory != "" {
 		config.TargetDirectory = *targetDirectory
 	}
-	if *noClone {
-		config.NoClone = *noClone
-	}
-	if *packageDirectory != "" {
-		config.PackageDir = *packageDirectory
-	}
+	config.NoClone = *noClone
+	config.PackageDir = *packageDirectory
+	config.LogPath = *logPath
 
 	config.InteractiveRun = interactiveRun
 	return config, nil
+}
+
+func setupLogFile(path string) (*os.File, error) {
+	logFile, err := os.OpenFile(filepath.Join(path, "image_to_package_placer.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
+	mw := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(mw)
+	return logFile, nil
+}
+
+func closeLogFile(logFile *os.File) {
+	logFile.Close()
 }

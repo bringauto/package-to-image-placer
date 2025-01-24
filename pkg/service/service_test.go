@@ -40,6 +40,7 @@ func TestAddService_MissingRequiredFields(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
+	println(err.Error())
 }
 
 func TestCheckRequiredServicesEnabled_True(t *testing.T) {
@@ -58,4 +59,5 @@ func TestCheckRequiredServicesEnabled_False(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
+	println(err.Error())
 }

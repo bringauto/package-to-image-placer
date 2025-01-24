@@ -13,10 +13,13 @@ import (
 	"package-to-image-placer/pkg/helper"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 )
 
 const interactionTextColor = "\033[1;36m"
+const ColorRed = "\033[0;31m"
+const colorBlue = "\033[0;34m"
 const colorReset = "\033[0m"
 
 // SelectFilesInDir allows the user to select multiple files in a directory.
@@ -26,7 +29,7 @@ func SelectFilesInDir(dir string) ([]string, error) {
 	var selectedFiles []string
 	chooseAnotherFile := true
 	for chooseAnotherFile {
-		selectedFile, err := SelectFile(dir)
+		selectedFile, err := SelectFile(dir, selectedFiles)
 		if err != nil {
 			if err.Error() == "abort" {
 				fmt.Println("User aborted")
@@ -35,7 +38,8 @@ func SelectFilesInDir(dir string) ([]string, error) {
 			return nil, err
 		}
 		selectedFiles = append(selectedFiles, selectedFile)
-		printSelectedPackages(selectedFiles)
+
+		printCurrentlySelected(selectedFiles)
 		chooseAnotherFile = GetUserConfirmation("Do you want to select another file?")
 	}
 	selectedFiles = removeDuplicates(selectedFiles).([]string)
@@ -45,11 +49,8 @@ func SelectFilesInDir(dir string) ([]string, error) {
 	return selectedFiles, nil
 }
 
-func printSelectedPackages(selectedPackages []string) {
-	fmt.Printf("\nCurrently selected:\n")
-	for _, file := range selectedPackages {
-		fmt.Printf("\t%s\n", file)
-	}
+func printCurrentlySelected(selected []string) {
+	fmt.Printf("\nCurrently selected:\n\t", strings.Join(selected, "\n\t"))
 }
 
 // getDirsAndZips returns a list of directories and zip files in the specified directory.
@@ -75,7 +76,7 @@ func getDirsAndZips(dir string) ([]string, error) {
 // SelectFile allows the user to select a file from the specified directory.
 // It uses a fuzzy finder to present the files and directories to the user.
 // Returns the selected file path.
-func SelectFile(dir string) (string, error) {
+func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
@@ -85,20 +86,36 @@ func SelectFile(dir string) (string, error) {
 		return "", err
 	}
 
+	displayItems := make([]string, len(files))
+
+	for i, item := range files {
+		if isSelectedDir(item) {
+			displayItems[i] = "    " + item
+		} else if slices.Contains(alreadySelectedItems, filepath.Join(absDir, item)) {
+			displayItems[i] = "[X] " + item
+		} else {
+			displayItems[i] = "[ ] " + item
+		}
+	}
+
 	header := "Choose file to copy. Press esc to quit.\nCurrent directory: " + absDir + "\n"
 
-	selectedFileIndex, err := fuzzySelectOne(header, files)
+	selectedFileIndex, err := fuzzySelectOne(header, displayItems)
 	if err != nil {
 		return "", err
 	}
 
 	selectedFile := strings.TrimSpace(files[selectedFileIndex])
-	if strings.HasSuffix(selectedFile, "/") || selectedFile == "../" {
+	if isSelectedDir(selectedFile) {
 		newDir := filepath.Join(dir, selectedFile)
-		return SelectFile(newDir)
+		return SelectFile(newDir, alreadySelectedItems)
 	}
 	selectedFile = filepath.Join(absDir, selectedFile)
 	return selectedFile, nil
+}
+
+func isSelectedDir(path string) bool {
+	return strings.HasSuffix(path, "/")
 }
 
 // removeDuplicates removes duplicate elements from a slice.
@@ -144,10 +161,19 @@ func SelectPartitions(diskPath string) ([]int, error) {
 	}
 
 	var partitionsNumbers []int
+	var selectedPartitionsInfo []string
+	displayItems := make([]string, len(allPartitions))
 
-	chooseAnotherFile := true
-	for chooseAnotherFile {
-		selectedPartitionIndex, err := fuzzySelectOne("Select partition to which the package will be copied: ", partitionInfo)
+	chooseAnotherPartition := true
+	for chooseAnotherPartition {
+		for i, item := range partitionInfo {
+			if slices.Contains(selectedPartitionsInfo, item) {
+				displayItems[i] = "[X] " + item
+			} else {
+				displayItems[i] = "[ ] " + item
+			}
+		}
+		selectedPartitionIndex, err := fuzzySelectOne("Select partition to which the package will be copied: ", displayItems)
 		if err != nil {
 			if err.Error() == "abort" {
 				fmt.Println("User aborted")
@@ -156,9 +182,10 @@ func SelectPartitions(diskPath string) ([]int, error) {
 			return nil, err
 		}
 		partitionsNumbers = append(partitionsNumbers, allPartitions[selectedPartitionIndex].partitionNumber)
-
-		printSelectedPartitions(partitionsNumbers)
-		chooseAnotherFile = GetUserConfirmation("Do you want to select another partition?")
+		selectedPartitionsInfo = append(selectedPartitionsInfo, partitionInfo[selectedPartitionIndex])
+		// printSelectedPartitions(partitionsNumbers)
+		printCurrentlySelected(selectedPartitionsInfo)
+		chooseAnotherPartition = GetUserConfirmation("Do you want to select another partition?")
 	}
 	partitionsNumbers = removeDuplicates(partitionsNumbers).([]int)
 	if len(partitionsNumbers) == 0 {
