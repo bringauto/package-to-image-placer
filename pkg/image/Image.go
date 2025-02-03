@@ -90,16 +90,23 @@ func (imageCreator imageCreator) copyPartitionTable() error {
 	return nil
 }
 
+const tmpDirPath = "./tmp/"
+
 // copyPartitionData copies all data from source disk partitions to target disk partitions
 func (imageCreator imageCreator) copyPartitionData() error {
 	sourcePartitionTable, err := imageCreator.sourceDisk.GetPartitionTable()
 	if err != nil {
 		return err
 	}
+	err = os.MkdirAll(tmpDirPath, 0755)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDirPath)
 	for index, p := range sourcePartitionTable.GetPartitions() {
 		log.Printf("Writing to partition  %d: %s", index+1, p.UUID())
 
-		tmpFile, err := os.CreateTemp("", "partition_data_*.tmp")
+		tmpFile, err := os.CreateTemp(tmpDirPath, "partition_data_*.tmp")
 		if err != nil {
 			return err
 		}
@@ -119,10 +126,12 @@ func (imageCreator imageCreator) copyPartitionData() error {
 		written, err := imageCreator.targetDisk.WritePartitionContents(index+1, reader)
 		println("written bytes: ", written)
 		if err != nil {
+			reader.Close()
 			return err
 		}
 		reader.Close()
 		os.Remove(tmpFile.Name())
+
 	}
 	return nil
 }

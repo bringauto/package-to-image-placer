@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"package-to-image-placer/pkg/configuration"
 	"package-to-image-placer/pkg/helper"
-	"package-to-image-placer/pkg/interaction"
 	"package-to-image-placer/pkg/service"
+	"package-to-image-placer/pkg/user"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -21,23 +21,21 @@ import (
 const timeout = 60 * time.Second
 
 // CopyPackageToImagePartitions copies the specified packages to the specified partitions in the configuration.
-// It iterates over each partition and package, calling MountPartitionAndCopyPackage for each combination.
+// It iterates over each partition and package, calling MountPartitionAndCopyPackages for each combination.
 func CopyPackageToImagePartitions(config *configuration.Configuration) error {
 	for _, partition := range config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
-		for _, archive := range config.Packages {
-			err := MountPartitionAndCopyPackage(partition, archive, config)
-			if err != nil {
-				return err
-			}
+		err := MountPartitionAndCopyPackages(partition, config)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-// MountPartitionAndCopyPackage mounts the specified partition, copies the package to it, and activates any service files found in the package.
+// MountPartitionAndCopyPackages mounts the specified partition, copies the package to it, and activates any service files found in the package.
 // It handles signals for unmounting the partition and ensures the directory is populated before proceeding.
-func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, config *configuration.Configuration) error {
+func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Configuration) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -83,7 +81,7 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 
 	var targetDirectoryFullPath string
 	if config.InteractiveRun {
-		targetDirectoryFullPath, err = interaction.SelectTargetDirectory(mountDir, mountDir)
+		targetDirectoryFullPath, err = user.SelectTargetDirectory(mountDir, mountDir)
 		if err != nil {
 			return err
 		}
@@ -100,34 +98,38 @@ func MountPartitionAndCopyPackage(partitionNumber int, archivePath string, confi
 		return fmt.Errorf("target directory is not within the mounted partition")
 	}
 
-	serviceFiles, err := handleArchive(archivePath, mountDir, targetDirectoryFullPath, config.Overwrite)
-	if err != nil {
-		return err
-	}
-
-	if !service.AreAllServiceFromConfigPresent(serviceFiles, config.ServiceNames) {
-		baseServiceFiles := make([]string, len(serviceFiles))
-		for i, serviceFile := range serviceFiles {
-			baseServiceFiles[i] = filepath.Base(serviceFile)
+	var allFoundServiceFiles []string
+	for _, archivePath := range config.Packages {
+		serviceFiles, err := handleArchive(archivePath, mountDir, targetDirectoryFullPath, config.Overwrite)
+		if err != nil {
+			return err
 		}
-		return fmt.Errorf("not all services from the config are present in the package.\n\tFound services:  %v\n\tConfig services: %v\n", baseServiceFiles, config.ServiceNames)
-	}
 
-	for _, serviceFile := range serviceFiles {
-		if config.InteractiveRun {
-			if interaction.GetUserConfirmation(fmt.Sprintf("\nDo you want to activate service: %s", serviceFile)) {
+		allFoundServiceFiles = append(allFoundServiceFiles, serviceFiles...)
+
+		for _, serviceFile := range serviceFiles {
+			if config.InteractiveRun {
+				if user.GetUserConfirmation(fmt.Sprintf("\nDo you want to activate service: %s", serviceFile)) {
+					err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
+					if err != nil {
+						return fmt.Errorf("error while activating service: %v", err)
+					}
+					config.ServiceNames = append(config.ServiceNames, filepath.Base(serviceFile))
+				}
+			} else if service.IsServiceFileInList(serviceFile, config.ServiceNames) {
 				err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
 				if err != nil {
 					return fmt.Errorf("error while activating service: %v", err)
 				}
-				config.ServiceNames = append(config.ServiceNames, filepath.Base(serviceFile))
-			}
-		} else if service.IsServiceFileInList(serviceFile, config.ServiceNames) {
-			err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
-			if err != nil {
-				return fmt.Errorf("error while activating service: %v", err)
 			}
 		}
+	}
+	if !service.AreAllServiceFromConfigPresent(allFoundServiceFiles, config.ServiceNames) {
+		baseServiceFiles := make([]string, len(allFoundServiceFiles))
+		for i, serviceFile := range allFoundServiceFiles {
+			baseServiceFiles[i] = filepath.Base(serviceFile)
+		}
+		return fmt.Errorf("not all services from the config are present in the package.\n\tFound services:  %v\n\tConfig services: %v\n", baseServiceFiles, config.ServiceNames)
 	}
 
 	err = service.CheckRequiredServicesEnabled(mountDir, config.ServiceNames)
@@ -152,8 +154,9 @@ func handleArchive(archivePath, mountDir, targetDir string, overwrite bool) ([]s
 	if err != nil {
 		return nil, err
 	}
-
-	serviceFiles, err := decompressZipArchive(zipReader, targetDir, overwrite)
+	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
+	os.MkdirAll(targetArchiveDir, os.ModePerm)
+	serviceFiles, err := decompressZipArchive(zipReader, targetArchiveDir, overwrite)
 	if err != nil {
 		return nil, err
 	}
@@ -215,11 +218,11 @@ func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite
 		targetFilePath := filepath.Join(targetDir, file.Name)
 		//fmt.Println("unzipping file ", targetFilePath)
 
-		if !strings.HasPrefix(targetFilePath, filepath.Clean(targetDir)+string(os.PathSeparator)) { // Check if the file is within the target directory
+		if !helper.IsWithinRootDir(targetDir, targetFilePath) { // Check if the file is within the target directory
 			return nil, fmt.Errorf("invalid file path")
 		}
 		if file.FileInfo().IsDir() {
-			log.Println("creating directory ", targetFilePath)
+			log.Printf("creating directory %s\n", targetFilePath)
 			if err := os.MkdirAll(targetFilePath, os.ModePerm); err != nil {
 				return nil, err
 			}
@@ -248,6 +251,12 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool
 		if err == nil {
 			return fmt.Errorf("file %s already exists. Use -overwrite flag to overwrite existing files.", destFilePath)
 		}
+	} else {
+		// Remove the existing file or symlink if overwrite is true
+		err := os.Remove(destFilePath)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove existing file %s: %v", destFilePath, err)
+		}
 	}
 	srcFile, err := srcZipFile.Open()
 	if err != nil {
@@ -255,15 +264,26 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool
 	}
 	defer srcFile.Close()
 
-	destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcZipFile.Mode())
-	if err != nil {
-		return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
-	}
-	defer destFile.Close()
+	if srcZipFile.FileInfo().Mode()&os.ModeSymlink != 0 {
+		linkTarget, err := io.ReadAll(srcFile)
+		if err != nil {
+			return fmt.Errorf("unable to read symlink target for %s: %v", srcZipFile.Name, err)
+		}
+		err = os.Symlink(string(linkTarget), destFilePath)
+		if err != nil {
+			return fmt.Errorf("unable to create symlink %s: %v", destFilePath, err)
+		}
+	} else {
+		destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcZipFile.Mode())
+		if err != nil {
+			return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
+		}
+		defer destFile.Close()
 
-	_, err = io.Copy(destFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("unable to copy file %s: %v", srcZipFile.Name, err)
+		_, err = io.Copy(destFile, srcFile)
+		if err != nil {
+			return fmt.Errorf("unable to copy file %s: %v", srcZipFile.Name, err)
+		}
 	}
 	// TODO do we want to change permissions if the file already exists?
 	// Set the file permissions

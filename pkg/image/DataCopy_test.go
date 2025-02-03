@@ -53,7 +53,7 @@ func createDefaultConfig() configuration.Configuration {
 func TestMountPartitionAndCopyPackage_Success(t *testing.T) {
 	config := createDefaultConfig()
 
-	err := MountPartitionAndCopyPackage(partitionNumber, exampleArchive, &config)
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -63,7 +63,7 @@ func TestMountPartitionAndCopyPackage_ArchiveSizeTooBig(t *testing.T) {
 	packagePath := "../../testdata/archives/tooBig.zip"
 	config := createDefaultConfig()
 
-	err := MountPartitionAndCopyPackage(partitionNumber, packagePath, &config)
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -72,7 +72,7 @@ func TestMountPartitionAndCopyPackage_ArchiveSizeTooBig(t *testing.T) {
 func TestMountPartitionAndCopyPackage_InvalidPartition(t *testing.T) {
 	config := createDefaultConfig()
 
-	err := MountPartitionAndCopyPackage(-1, exampleArchive, &config)
+	err := MountPartitionAndCopyPackages(-1, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -82,7 +82,7 @@ func TestMountPartitionAndCopyPackage_InvalidPackagePath(t *testing.T) {
 	packagePath := "doesNotExist.zip"
 	config := createDefaultConfig()
 
-	err := MountPartitionAndCopyPackage(partitionNumber, packagePath, &config)
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -92,7 +92,7 @@ func TestMountPartitionAndCopyPackage_NotAllServicesActivated(t *testing.T) {
 	config := createDefaultConfig()
 	config.ServiceNames = []string{"unavailable.service"}
 
-	err := MountPartitionAndCopyPackage(partitionNumber, exampleArchive, &config)
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -102,7 +102,7 @@ func TestMountPartitionAndCopyPackage_FailExistNoOverwrite(t *testing.T) {
 	config := createDefaultConfig()
 	config.Overwrite = false
 
-	err := MountPartitionAndCopyPackage(partitionNumber, exampleArchive, &config)
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -112,7 +112,7 @@ func TestMountPartitionAndCopyPackage_InvalidTargetDirectory(t *testing.T) {
 	config := createDefaultConfig()
 	config.TargetDirectory = "../../"
 
-	err := MountPartitionAndCopyPackage(partitionNumber, exampleArchive, &config)
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	} else if err.Error() != "target directory is not within the mounted partition" {

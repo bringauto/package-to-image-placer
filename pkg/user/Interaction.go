@@ -1,4 +1,4 @@
-package interaction
+package user
 
 import (
 	"bufio"
@@ -50,7 +50,7 @@ func SelectFilesInDir(dir string) ([]string, error) {
 }
 
 func printCurrentlySelected(selected []string) {
-	fmt.Printf("\nCurrently selected:\n\t", strings.Join(selected, "\n\t"))
+	fmt.Printf("\nCurrently selected:\n\t%s\n", strings.Join(selected, "\n\t"))
 }
 
 // getDirsAndZips returns a list of directories and zip files in the specified directory.

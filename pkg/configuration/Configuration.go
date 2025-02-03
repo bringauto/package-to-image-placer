@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"package-to-image-placer/pkg/helper"
-	"package-to-image-placer/pkg/interaction"
+	"package-to-image-placer/pkg/user"
 	"path/filepath"
 )
 
@@ -31,7 +31,7 @@ func CreateConfigurationFile(config Configuration) (string, error) {
 	var err error
 
 	for {
-		path, err = interaction.ReadStringFromUser("Enter path to save configuration file: ")
+		path, err = user.ReadStringFromUser("Enter path to save configuration file: ")
 		if err != nil {
 			return "", err
 		}

@@ -10,7 +10,7 @@ import (
 	"package-to-image-placer/pkg/configuration"
 	"package-to-image-placer/pkg/helper"
 	"package-to-image-placer/pkg/image"
-	"package-to-image-placer/pkg/interaction"
+	"package-to-image-placer/pkg/user"
 	"path/filepath"
 	"strings"
 )
@@ -38,9 +38,9 @@ func main() {
 
 	newConfigFilePath := ""
 	if config.InteractiveRun {
-		interaction.SetUpCommandline()
-		defer interaction.CleanUpCommandLine()
-		config.Packages, err = interaction.SelectFilesInDir(config.PackageDir)
+		user.SetUpCommandline()
+		defer user.CleanUpCommandLine()
+		config.Packages, err = user.SelectFilesInDir(config.PackageDir)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 			return
@@ -52,12 +52,12 @@ func main() {
 		} else {
 			imagePath = config.Source
 		}
-		config.PartitionNumbers, err = interaction.SelectPartitions(imagePath)
+		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
 		if err != nil {
 			log.Printf("Error while selecting partitions: %s\n", err)
 		}
 
-		if interaction.GetUserConfirmation("\nDo you want to save the configuration?") {
+		if user.GetUserConfirmation("\nDo you want to save the configuration?") {
 			newConfigFilePath, err = configuration.CreateConfigurationFile(config)
 			if err != nil {
 				log.Printf("Error: %s\n", err)
@@ -66,8 +66,8 @@ func main() {
 
 	}
 
-	log.Printf("Packages: %v\n\twill be copied to partitions: %v\n", strings.Join(config.Packages, ", "), config.PartitionNumbers)
-	if config.InteractiveRun && !interaction.GetUserConfirmation("Do you want to continue?") {
+	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(config.Packages, "\n\t"), config.PartitionNumbers)
+	if config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")
 		return
 	}
@@ -75,7 +75,7 @@ func main() {
 	if !config.NoClone {
 		if helper.DoesFileExists(config.Target) {
 			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
-			if config.InteractiveRun && !interaction.GetUserConfirmation(askUser) {
+			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
 				log.Fatalf("file already exists and user chose not to delete it")
 			}
 			if err := os.Remove(config.Target); err != nil {
