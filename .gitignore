@@ -31,3 +31,9 @@ go.sum
 .idea
 .vscode
 image-mounting-pof
+
+# tests data
+/tests/**/__pycache__/
+tests/.pytest_cache/
+tests/venv/
+tests/test_data/
