@@ -53,3 +53,6 @@ pytest --collect-only
 ### 1.1. Test suite: test_app_valid_scenarios
 
 This test suit tests if the application runs correctly with valid arguments.
+
+- test that the packages fits on disk
+- symlink to the package

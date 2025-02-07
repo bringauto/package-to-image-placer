@@ -4,6 +4,25 @@ from random import random, randint
 from time import sleep
 
 
+def create_test_package(package_dir: str, package_name: str) -> None:
+    if not os.path.exists(package_dir):
+        raise Exception(f"Directory {package_dir} does not exist")
+
+    package_path = os.path.join(package_dir, package_name)
+    if os.path.exists(package_path):
+        print(f"Package {package_path} already exists. Removing...")
+        os.remove(package_path)
+
+    os.makedirs(package_path)
+    with open(os.path.join(package_path, "file1"), "w") as f:
+        f.write("This is file1")
+
+    with open(os.path.join(package_path, "file2"), "w") as f:
+        f.write("This is file2")
+
+    subprocess.run(["zip", "-r", f"{package_path}.zip", package_path], check=True)
+
+
 def unmount_disk(device_path: str) -> None:
     """
     Unmount a disk device.
@@ -275,58 +294,46 @@ def inspect_device(device_path: str, bootloader: str, rootfs: str, recovery: str
     return True
 
 
-def run_target_disk_setup(
-    target_disk_setup_binary: str,
-    bootloader: str,
-    rootfs: str,
-    target_device: str = None,
-    recovery: str = None,
-    log_folder: str = None,
-    result_list: list = None,
-    target_image: str = None,
-    image_size_gb: int = None,
+def run_package_to_image_placer(
+    package_to_image_placer_binary: str,
+    source: str = None,
+    target: str = None,
+    config: bool = False,
+    no_clone: bool = False,
+    overwrite: bool = False,
+    package_dir: bool = False,
+    target_dir: bool = False,
     send_to_stdin: str = "",
+    result_list: list = None,
 ) -> subprocess.CompletedProcess:
-    """
-    Run the target disk setup application with the provided arguments.
 
-    Args:
-        target_disk_setup_binary (str): The path to the target disk setup binary.
-        bootloader (str): The path to the bootloader image.
-        rootfs (str): The path to the rootfs image.
-        target_device (str, optional): The path to the target device. If not provided, the application will run in image
-                                       creation mode.
-        recovery (str, optional): The path to the recovery image.
-        log_folder (str, optional): The path to the log folder.
-        result_list (list, optional): A list to store the subprocess result.
-        target_image (str, optional): The path to the target image.
-        image_size_gb (int, optional): The size of the target image in GB.
-        send_to_stdin (str, optional): The input to send to the application.
+    parameters = [package_to_image_placer_binary]
 
-    Returns:
-        subprocess.CompletedProcess: The result of the subprocess.
-    """
+    if source:
+        parameters.append(f"-source")
+        parameters.append(source)
 
-    parameters = [
-        "sudo",
-        target_disk_setup_binary,
-        f"-bootloader={bootloader}",
-        f"-rootfs={rootfs}",
-    ]
-    if target_device:
-        parameters.append(f"-target-device={target_device}")
+    if target:
+        parameters.append(f"-target")
+        parameters.append(target)
 
-    if recovery:
-        parameters.append(f"-recovery={recovery}")
+    if config:
+        parameters.append("-config")
+        parameters.append(config)
 
-    if log_folder:
-        parameters.append(f"-log-folder={log_folder}")
+    if no_clone:
+        parameters.append("-no-clone")
 
-    if target_image:
-        parameters.append(f"-target-image={target_image}")
+    if overwrite:
+        parameters.append("-overwrite")
 
-    if image_size_gb:
-        parameters.append(f"-image-size-gb={image_size_gb}")
+    if package_dir:
+        parameters.append("-package-dir")
+
+    if target_dir:
+        parameters.append("-target-dir")
+
+    print(parameters)
 
     result = subprocess.Popen(
         parameters,

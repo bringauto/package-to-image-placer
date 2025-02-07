@@ -18,17 +18,8 @@ def package_to_image_placer_binary():
 @pytest.fixture(autouse=True)
 def clean_up_between_tests():
     """Set up the environment before each test is run and clean up after each test is run."""
-    test_data_dir = "test_data"
-    os.makedirs(test_data_dir, exist_ok=True)
 
-    # yield to run the test
     yield
-
-    # unmount all loop devices
-    subprocess.run(["sudo", "losetup", "-D"], check=True)
-
-    # remove all test data
-    shutil.rmtree(test_data_dir)
 
 
 @pytest.fixture(scope="session", autouse=True)

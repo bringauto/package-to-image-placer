@@ -3,7 +3,7 @@ import os
 from test_utils.test_utils import (
     create_disk_image,
     make_image_mountable,
-    run_target_disk_setup,
+    run_package_to_image_placer,
     inspect_device,
     fill_disk_images_with_data,
 )
@@ -15,6 +15,9 @@ def test_app_shows_help(package_to_image_placer_binary):
 
     assert result.stderr != ""
     assert result.returncode == 0
+
+def test_write_one_package(package_to_image_placer_binary):
+    
 
 
 # def test_app_finishes(target_disk_setup_binary):
