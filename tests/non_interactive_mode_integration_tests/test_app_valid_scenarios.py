@@ -1,11 +1,10 @@
 import subprocess
-import os
+from time import sleep
 from test_utils.test_utils import (
+    run_package_to_image_placer,
+    create_test_package,
     create_disk_image,
     make_image_mountable,
-    run_package_to_image_placer,
-    inspect_device,
-    fill_disk_images_with_data,
 )
 
 
@@ -16,8 +15,21 @@ def test_app_shows_help(package_to_image_placer_binary):
     assert result.stderr != ""
     assert result.returncode == 0
 
+
 def test_write_one_package(package_to_image_placer_binary):
-    
+    """TODO"""
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    img = "test_data/test_img.img"
+
+    create_test_package(package, 2)
+    create_disk_image(img, "10M", "ext4")
+    make_image_mountable(img)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, source=package_zip, target=img)
+
+    assert result.returncode == 0
+    pass
 
 
 # def test_app_finishes(target_disk_setup_binary):

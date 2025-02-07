@@ -1,41 +1,22 @@
 import subprocess
 import os
+import shutil
 from random import random, randint
 from time import sleep
 
 
-def create_test_package(package_dir: str, package_name: str) -> None:
-    if not os.path.exists(package_dir):
-        raise Exception(f"Directory {package_dir} does not exist")
-
-    package_path = os.path.join(package_dir, package_name)
+def create_test_package(package_path: str, number_of_files: int) -> None:
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
         os.remove(package_path)
 
     os.makedirs(package_path)
-    with open(os.path.join(package_path, "file1"), "w") as f:
-        f.write("This is file1")
-
-    with open(os.path.join(package_path, "file2"), "w") as f:
-        f.write("This is file2")
+    for i in range(number_of_files):
+        with open(f"{package_path}/file_{i}", "w") as f:
+            f.write(f"This is a test file {i}")
 
     subprocess.run(["zip", "-r", f"{package_path}.zip", package_path], check=True)
-
-
-def unmount_disk(device_path: str) -> None:
-    """
-    Unmount a disk device.
-
-    Args:
-        device_path (str): The path to the device to unmount.
-    """
-
-    rc = subprocess.run(["sudo", "umount", device_path], check=False)
-    while rc.returncode != 0:
-        print(f"Failed to unmount {device_path}. Retrying...")
-        sleep(0.1)
-        rc = subprocess.run(["sudo", "umount", device_path], check=False)
+    shutil.rmtree(package_path)
 
 
 def create_disk_image(image_path: str, image_size: str, file_system: str) -> str:
@@ -60,6 +41,24 @@ def create_disk_image(image_path: str, image_size: str, file_system: str) -> str
         subprocess.run(["mkfs", f"-t{file_system}", image_path], check=True)
 
     return image_path
+
+
+# def create_config(config_path: str)
+
+
+def unmount_disk(device_path: str) -> None:
+    """
+    Unmount a disk device.
+
+    Args:
+        device_path (str): The path to the device to unmount.
+    """
+
+    rc = subprocess.run(["sudo", "umount", device_path], check=False)
+    while rc.returncode != 0:
+        print(f"Failed to unmount {device_path}. Retrying...")
+        sleep(0.1)
+        rc = subprocess.run(["sudo", "umount", device_path], check=False)
 
 
 def fill_disk_image_with_data(image_path: str, files_n: int = None) -> None:

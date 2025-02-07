@@ -169,7 +169,7 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 }
 
 func setupLogFile(path string) (*os.File, error) {
-	logFile, err := os.OpenFile(filepath.Join(path, "image_to_package_placer.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(filepath.Join(path, "package_to_image_placer.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}
