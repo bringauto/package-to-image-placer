@@ -40,10 +40,49 @@ def create_disk_image(image_path: str, image_size: str, file_system: str) -> str
     else:
         subprocess.run(["mkfs", f"-t{file_system}", image_path], check=True)
 
+    test_mount_point = os.path.abspath("test_data/mount_point")
+    loop_device = make_image_mountable(image_path)
+
+    try:
+        subprocess.run(["mkdir", "-p", test_mount_point], check=True)
+        subprocess.run(["sudo", "mount", loop_device, test_mount_point], check=True)
+        placeholder_file_path = os.path.join(test_mount_point, "placeholder.txt")
+        subprocess.run(["sudo", "touch", placeholder_file_path], check=True)
+        subprocess.run(["sudo", "chmod", "666", placeholder_file_path], check=True)
+        with open(placeholder_file_path, "w") as f:
+            f.write("This is a placeholder file.")
+    finally:
+        unmount_disk(test_mount_point)
+        subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
+        subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
+
     return image_path
 
 
-# def create_config(config_path: str)
+def create_config(
+    config_path: str,
+    source: str,
+    target: str,
+    packages: list[str],
+    partition_numbers: list[int],
+    service_files: list[str] = [],
+    target_directory: str = None,
+    no_clone: bool = False,
+    overwrite: bool = False,
+) -> None:
+    data = {
+        "source": source,
+        "target": target,
+        "packages": packages,
+        "partition-numbers": partition_numbers,
+        "service_files": service_files,
+        "target-directory": target_directory,
+        "no-clone": no_clone,
+        "overwrite": overwrite,
+    }
+
+    with open(config_path, "w") as f:
+        json.dump(data, f)
 
 
 def unmount_disk(device_path: str) -> None:
@@ -216,79 +255,24 @@ def is_partition_content_similar(partition: str, img: str) -> bool:
     return test_result
 
 
-def inspect_device(device_path: str, bootloader: str, rootfs: str, recovery: str = None) -> bool:
-    """
-    Inspect the content of a device.
+def inspect_image(image_path: str) -> bool:
+    """TODO"""
 
-    Args:
-        device_path (str): The path to the device.
-        bootloader (str): The path to the bootloader image.
-        rootfs (str): The path to the rootfs image.
-        recovery (str): The path to the recovery image.
-
-    Returns:
-        bool: True if the device content is similar to the provided images, False otherwise.
-    """
+    loop_device = make_image_mountable(image_path)
+    test_mount_point = os.path.abspath("test_data/mount_point")
 
     try:
-        mount_device = subprocess.run(["sudo", "fdisk", "-l", device_path], capture_output=True, text=True)
-        if mount_device.returncode != 0:
-            raise Exception(f"Failed to inspect device: {mount_device.stderr}")
+        subprocess.run(["mkdir", "-p", test_mount_point], check=True)
+        subprocess.run(["sudo", "mount", loop_device, test_mount_point], check=True)
 
-        partitions = []
-        for line in mount_device.stdout.splitlines():
-            if line.startswith(device_path):
-                parts = line.split()
-                partition_info = {
-                    "name": parts[0],
-                    "start": parts[1],
-                    "end": parts[2],
-                    "sectors": parts[3],
-                    "size": parts[4],
-                    "type": parts[5],
-                }
-                partitions.append(partition_info)
+        for root, _, files in os.walk(test_mount_point):
+            for name in files:
+                print(os.path.join(root, name))
 
-        # It should contains 4 partitions bootloader, A, B, recovery
-        if len(partitions) != 4:
-            raise Exception(f"Device {device_path} does not have 4 partitions")
-
-        for partition in partitions:
-            fs_check = subprocess.run(
-                ["sudo", "blkid", "-o", "value", "-s", "TYPE", "-s", "PARTLABEL", partition["name"]],
-                capture_output=True,
-                text=True,
-            )
-            partition["fs_type"] = fs_check.stdout.splitlines()[0]
-            partition["part_label"] = fs_check.stdout.splitlines()[1]
-            if fs_check.returncode != 0:
-                raise Exception(f"Failed to get filesystem info for {partition['name']}: {fs_check.stderr}")
-
-            if not partition["fs_type"] in ["ext4"]:
-                raise Exception(f"Partition {partition['name']} is not formatted as ext4")
-
-            # Check the bootloader partition
-            if partition["part_label"] == "msdos":
-                if not is_partition_content_similar(partition["name"], bootloader):
-                    raise Exception(f"Bootloader partition content is not similar to the provided bootloader image")
-
-            # Check the rootfs partitions
-            if partition["part_label"] in ["A", "B"]:
-                if not is_partition_content_similar(partition["name"], rootfs):
-                    raise Exception(f"Rootfs partition content is not similar to the provided rootfs image")
-
-            # Check the recovery partition
-            if partition["part_label"] == "recovery":
-                if recovery is None:
-                    if not is_partition_content_similar(partition["name"], rootfs):
-                        raise Exception(f"Recovery partition content is not similar to the provided rootfs image")
-                else:
-                    if not is_partition_content_similar(partition["name"], recovery):
-                        raise Exception(f"Recovery partition content is not similar to the provided recovery image")
-
-    except Exception as e:
-        print(f"Error inspecting device: {e}")
-        return False
+    finally:
+        unmount_disk(test_mount_point)
+        subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
+        subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
 
     return True
 

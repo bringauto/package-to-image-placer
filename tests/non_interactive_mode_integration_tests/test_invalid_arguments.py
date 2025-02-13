@@ -1,5 +1,7 @@
 import subprocess
-from test_utils.test_utils import run_package_to_image_placer
+import pathlib
+import os
+from test_utils.test_utils import run_package_to_image_placer, create_config, create_test_package
 
 
 def test_invalid_file_paths(package_to_image_placer_binary):
@@ -20,3 +22,30 @@ def test_invalid_file_paths(package_to_image_placer_binary):
 
     assert r3.stderr != ""
     assert r3.returncode == 1
+
+
+def test_invalid_image_file(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partition_numbers = [1]
+
+    # Create an empty file to simulate an invalid image
+    with open(img_in, "w") as f:
+        f.write("I'm just a text file")
+
+    if pathlib.Path(img_out).exists():
+        os.remove(img_out)
+
+    create_test_package(package, 2)
+
+    create_config(config, img_in, img_out, [package_zip], partition_numbers)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 1
+    assert result.stderr != ""
+    assert not pathlib.Path(img_out).exists()

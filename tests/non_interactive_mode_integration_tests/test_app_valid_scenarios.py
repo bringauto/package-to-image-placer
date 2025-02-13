@@ -5,6 +5,8 @@ from test_utils.test_utils import (
     create_test_package,
     create_disk_image,
     make_image_mountable,
+    create_config,
+    inspect_image,
 )
 
 
@@ -18,18 +20,24 @@ def test_app_shows_help(package_to_image_placer_binary):
 
 def test_write_one_package(package_to_image_placer_binary):
     """TODO"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img"
+    img_out = "test_data/test_img_out.img"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
-    img = "test_data/test_img.img"
+    partition_numbers = [1]
 
     create_test_package(package, 2)
-    create_disk_image(img, "10M", "ext4")
-    make_image_mountable(img)
+    create_disk_image(img_in, "10M", "ext4")
+    make_image_mountable(img_in)
 
-    result = run_package_to_image_placer(package_to_image_placer_binary, source=package_zip, target=img)
+    create_config(config, img_in, img_out, [package_zip], partition_numbers)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
     assert result.returncode == 0
-    pass
+
+    # assert inspect_image(img_out)
 
 
 # def test_app_finishes(target_disk_setup_binary):

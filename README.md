@@ -44,7 +44,7 @@ For non-interactive mode, run:
 ### Arguments
 
 * `-source` - Path to the source image.
-* `-target` - Path to the target image. The path will be created.
+* `-target` - Path to the target image. The path will be created and can't be same as source image path.
   * If used with no-clone option this file must exist and will be changed.
 * `-config` - Path to the config file. Sets Non-interactive mode.
 * `-no-clone` - Do not clone the source image. The target image must exist.
