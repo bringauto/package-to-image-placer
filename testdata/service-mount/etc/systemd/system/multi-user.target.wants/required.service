@@ -1,0 +1,14 @@
+[Service]
+Type=simple
+ExecStart=echo "Hello, World!"
+Restart=always
+RestartSec=10
+User=root
+WorkingDirectory=/root/
+
+[Unit]
+After=network.target
+Description=Required Service
+
+[Install]
+WantedBy=multi-user.target

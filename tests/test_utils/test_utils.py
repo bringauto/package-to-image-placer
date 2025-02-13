@@ -1,6 +1,7 @@
 import subprocess
 import os
 import shutil
+import json
 from random import random, randint
 from time import sleep
 
@@ -8,7 +9,7 @@ from time import sleep
 def create_test_package(package_path: str, number_of_files: int) -> None:
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
-        os.remove(package_path)
+        shutil.rmtree(package_path)
 
     os.makedirs(package_path)
     for i in range(number_of_files):
@@ -16,7 +17,6 @@ def create_test_package(package_path: str, number_of_files: int) -> None:
             f.write(f"This is a test file {i}")
 
     subprocess.run(["zip", "-r", f"{package_path}.zip", package_path], check=True)
-    shutil.rmtree(package_path)
 
 
 def create_disk_image(image_path: str, image_size: str, file_system: str) -> str:
