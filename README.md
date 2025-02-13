@@ -28,7 +28,7 @@ go get package-to-image-placer
 go build
 ```
 
-### Run
+## Run
 For interactive mode, run:
 
 ```bash
@@ -41,7 +41,7 @@ For non-interactive mode, run:
 ./package-to-image-placer -config <config_file_path> [ <overrides> ]
 ```
 
-#### Arguments
+### Arguments
 
 * `-source` - Path to the source image.
 * `-target` - Path to the target image. The path will be created.
@@ -56,13 +56,41 @@ For non-interactive mode, run:
 
 > Commandline arguments are overriding the config file values.
 
-#### Tests
+### Tests
 
 To run all tests, run:
 
 ```bash
 go test ./...
 ```
+
+## Config file
+
+The config can be generated in interactive run. The config file is used to set the package, target partition, and service files to activate.
+
+Default config file is in [default-config.json](./resources/default-config.json).
+
+Config structure is as follows:
+
+```json lines
+{
+  "source": "<source-image-path>",
+  "target": "<target-image-path>",
+  "packages": [
+    "<package-path.zip>"
+  ],
+  "partition-numbers": [ 
+    <partition-number>
+  ],
+  "service_files": [
+    "<service-file-name-with-suffix>"
+  ],
+  "target-directory": "<target-directory-on-image>",
+  "no-clone": <bool>,
+  "overwrite": <bool>
+}
+```
+
 
 ## Libguest installation
 
