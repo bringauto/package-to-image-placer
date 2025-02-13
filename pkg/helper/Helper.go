@@ -43,6 +43,24 @@ func AllDepsInstalled() error {
 	return nil
 }
 
+func ValidSourceImage(imagePath string) error {
+	if !DoesFileExists(imagePath) {
+		return fmt.Errorf("source image file does not exist: %s", imagePath)
+	}
+
+	fileInfo, err := os.Stat(imagePath)
+	if err != nil {
+		return err
+	}
+	if fileInfo.IsDir() {
+		return fmt.Errorf("source image is a directory: %s", imagePath)
+	}
+	if fileInfo.Size() == 0 {
+		return fmt.Errorf("source image file is empty: %s", imagePath)
+	}
+	return nil
+}
+
 // SplitStringPreserveSubstrings splits a string into substrings while preserving substrings in quotes.
 // e.g. "'a b' c" -> ["'a b'", "c"]
 func SplitStringPreserveSubstrings(input string) []string {

@@ -52,11 +52,17 @@ func main() {
 		} else {
 			imagePath = config.Source
 		}
+
+		err = helper.ValidSourceImage(imagePath)
+		if err != nil {
+			user.CleanUpCommandLine()
+			log.Fatalf("Error: %s\n", err)
+		}
+
 		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
 		if err != nil {
-			log.Printf("Error while selecting partitions: %s\n", err)
 			user.CleanUpCommandLine()
-			os.Exit(1)
+			log.Fatalf("Error while selecting partitions: %s\n", err)
 		}
 
 		if user.GetUserConfirmation("\nDo you want to save the configuration?") {
@@ -78,16 +84,17 @@ func main() {
 		if helper.DoesFileExists(config.Target) {
 			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
 			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
+				user.CleanUpCommandLine()
 				log.Fatalf("file already exists and user chose not to delete it")
 			}
 			if err := os.Remove(config.Target); err != nil {
+				user.CleanUpCommandLine()
 				log.Fatalf("unable to delete existing file: %s", err)
 			}
 		}
 		err := image.CloneImage(config.Source, config.Target)
 		if err != nil {
-			log.Printf("Error: %s\n", err)
-			return
+			log.Fatalf("Error: %s\n", err)
 		}
 	}
 
