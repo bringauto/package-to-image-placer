@@ -55,6 +55,8 @@ func main() {
 		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
 		if err != nil {
 			log.Printf("Error while selecting partitions: %s\n", err)
+			user.CleanUpCommandLine()
+			os.Exit(1)
 		}
 
 		if user.GetUserConfirmation("\nDo you want to save the configuration?") {

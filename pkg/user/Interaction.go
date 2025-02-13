@@ -154,7 +154,10 @@ type partitionInfo struct {
 // It repeatedly prompts the user to select partitions until they choose to stop.
 // Returns a slice of selected partition numbers.
 func SelectPartitions(diskPath string) ([]int, error) {
-	allPartitions := getPartitionInfo(diskPath)
+	allPartitions, err := getPartitionInfo(diskPath)
+	if err != nil {
+		return nil, err
+	}
 	partitionInfo := make([]string, len(allPartitions))
 	for index, partition := range allPartitions {
 		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: '%s' Type: %s", partition.partitionNumber, partition.partitionUUID, partition.filesystemLabel, partition.filesystemType)
@@ -354,12 +357,12 @@ func fuzzySelectOne(prompt string, items []string) (int, error) {
 
 // getPartitionInfo retrieves partition information from a disk image.
 // Returns a slice of partitionInfo structs.
-func getPartitionInfo(imagePath string) []partitionInfo {
+func getPartitionInfo(imagePath string) ([]partitionInfo, error) {
 	disk, _ := diskfs.Open(imagePath)
 	defer disk.Close()
 	table, err := disk.GetPartitionTable()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	var partitions []partitionInfo
 	for index, p := range table.GetPartitions() {
@@ -376,7 +379,7 @@ func getPartitionInfo(imagePath string) []partitionInfo {
 		}
 		partitions = append(partitions, partition)
 	}
-	return partitions
+	return partitions, nil
 }
 
 // typeToString converts a filesystem.Type to a string representation.
