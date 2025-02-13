@@ -19,42 +19,48 @@ def create_test_package(package_path: str, number_of_files: int) -> None:
     subprocess.run(["zip", "-r", f"{package_path}.zip", package_path], check=True)
 
 
-def create_disk_image(image_path: str, image_size: str, file_system: str) -> str:
+import subprocess
+import os
+
+
+def create_image(image_path: str, image_size: str) -> str:
     """
-    Create a disk image with the specified size and file system.
+    Create a disk image with the specified size and partition table (DOS/MBR).
 
     Args:
         image_path (str): The path where the disk image will be created.
-        image_size (str): The size of the disk image.
-        file_system (str): The file system type to be used for the disk image.
+        image_size (str): The size of the disk image (e.g., '5MB').
 
     Returns:
         str: The path to the created disk image.
     """
+    # Convert the image size to bytes
+    size_units = image_size[-2:].upper()
+    size_value = int(image_size[:-2])
 
-    if os.path.exists(image_path):
-        os.remove(image_path)
-    subprocess.run(["fallocate", "-l", f"{image_size}", image_path], check=True)
-    if file_system == "vfat":
-        subprocess.run(["mkfs.vfat", "-F", "32", image_path], check=True)
+    if size_units == "MB":
+        image_size_bytes = size_value * 1024 * 1024
+    elif size_units == "GB":
+        image_size_bytes = size_value * 1024 * 1024 * 1024
     else:
-        subprocess.run(["mkfs", f"-t{file_system}", image_path], check=True)
+        raise ValueError("Unsupported size unit. Please use 'MB' or 'GB'.")
 
-    test_mount_point = os.path.abspath("test_data/mount_point")
-    loop_device = make_image_mountable(image_path)
+    # Create a blank disk image with the specified size
+    subprocess.run(["fallocate", "-l", str(image_size_bytes), image_path], check=True)
 
-    try:
-        subprocess.run(["mkdir", "-p", test_mount_point], check=True)
-        subprocess.run(["sudo", "mount", loop_device, test_mount_point], check=True)
-        placeholder_file_path = os.path.join(test_mount_point, "placeholder.txt")
-        subprocess.run(["sudo", "touch", placeholder_file_path], check=True)
-        subprocess.run(["sudo", "chmod", "666", placeholder_file_path], check=True)
-        with open(placeholder_file_path, "w") as f:
-            f.write("This is a placeholder file.")
-    finally:
-        unmount_disk(test_mount_point)
-        subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
-        subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
+    result = subprocess.run(
+        ["parted", image_path, "--script", "mklabel", "gpt", "mkpart", "primary", "0%", "100%"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    if result.returncode == 0:
+        print(f"Partition table created successfully on {image_path}")
+    else:
+        print(f"Error creating partition table: {result.stderr.decode()}")
+
+    # Optionally, you can check the partition table with:
+    # subprocess.run(["parted", image_path, "print"])
 
     return image_path
 

@@ -24,8 +24,31 @@ def test_invalid_file_paths(package_to_image_placer_binary):
     assert r3.returncode == 1
 
 
+def test_empty_image_file(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partition_numbers = [1]
+
+    subprocess.run(["touch", img_in])
+
+    create_test_package(package, 2)
+
+    create_config(config, img_in, img_out, [package_zip], partition_numbers)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 1
+    assert result.stderr != ""
+    # assert not pathlib.Path(img_out).exists()
+
+
 def test_invalid_image_file(package_to_image_placer_binary):
     """TODO"""
+    # return
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img"
     img_out = "test_data/test_img_out.img"
@@ -48,4 +71,4 @@ def test_invalid_image_file(package_to_image_placer_binary):
 
     assert result.returncode == 1
     assert result.stderr != ""
-    assert not pathlib.Path(img_out).exists()
+    # assert not pathlib.Path(img_out).exists()

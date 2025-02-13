@@ -3,7 +3,7 @@ from time import sleep
 from test_utils.test_utils import (
     run_package_to_image_placer,
     create_test_package,
-    create_disk_image,
+    create_image,
     make_image_mountable,
     create_config,
     inspect_image,
@@ -21,14 +21,14 @@ def test_app_shows_help(package_to_image_placer_binary):
 def test_write_one_package(package_to_image_placer_binary):
     """TODO"""
     config = "test_data/test_config.json"
-    img_in = "test_data/test_img.img"
+    img_in = "test_data/test_img.img.in"
     img_out = "test_data/test_img_out.img"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
     partition_numbers = [1]
 
     create_test_package(package, 2)
-    create_disk_image(img_in, "10M", "ext4")
+    create_image(img_in, "10MB")
     make_image_mountable(img_in)
 
     create_config(config, img_in, img_out, [package_zip], partition_numbers)
