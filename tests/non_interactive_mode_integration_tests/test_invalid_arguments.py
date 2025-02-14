@@ -43,7 +43,7 @@ def test_empty_image_file(package_to_image_placer_binary):
 
     assert result.returncode == 1
     assert result.stderr != ""
-    # assert not pathlib.Path(img_out).exists()
+    assert not pathlib.Path(img_out).exists()
 
 
 def test_invalid_image_file(package_to_image_placer_binary):
@@ -71,4 +71,4 @@ def test_invalid_image_file(package_to_image_placer_binary):
 
     assert result.returncode == 1
     assert result.stderr != ""
-    # assert not pathlib.Path(img_out).exists()
+    assert not pathlib.Path(img_out).exists()
