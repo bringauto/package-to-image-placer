@@ -2,6 +2,7 @@ import subprocess
 import os
 import shutil
 import json
+import psutil
 from random import random, randint
 from time import sleep
 
@@ -23,17 +24,24 @@ import subprocess
 import os
 
 
-def create_image(image_path: str, image_size: str) -> str:
+import subprocess
+
+
+def create_image(image_path: str, image_size: str, partitions_count: int) -> str:
     """
     Create a disk image with the specified size and partition table (DOS/MBR).
 
     Args:
         image_path (str): The path where the disk image will be created.
         image_size (str): The size of the disk image (e.g., '5MB').
+        partitions_count (int): The number of partitions to create.
 
     Returns:
         str: The path to the created disk image.
     """
+    if partitions_count > 10:
+        raise ValueError("The maximum number of partitions is 10.")
+
     # Convert the image size to bytes
     size_units = image_size[-2:].upper()
     size_value = int(image_size[:-2])
@@ -48,19 +56,33 @@ def create_image(image_path: str, image_size: str) -> str:
     # Create a blank disk image with the specified size
     subprocess.run(["fallocate", "-l", str(image_size_bytes), image_path], check=True)
 
-    result = subprocess.run(
-        ["parted", image_path, "--script", "mklabel", "gpt", "mkpart", "primary", "0%", "100%"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    # Create a partition table (DOS/MBR or GPT)
+    subprocess.run(["parted", image_path, "--script", "mklabel", "gpt"], check=True)
 
-    if result.returncode == 0:
-        print(f"Partition table created successfully on {image_path}")
-    else:
-        print(f"Error creating partition table: {result.stderr.decode()}")
+    # Calculate partition sizes and create partitions
+    start = 0
+    for i in range(1, partitions_count + 1):
+        # Calculate partition size as a percentage of total disk space
+        end = (i * 100) // partitions_count
+        if i == partitions_count:
+            end = 100  # Ensure the last partition takes up the remaining space
+        subprocess.run(
+            ["parted", image_path, "--script", "mkpart", "primary", f"{start}%", f"{end}%"],
+            check=True,
+        )
+        start = end  # Update start for the next partition
 
-    # Optionally, you can check the partition table with:
-    # subprocess.run(["parted", image_path, "print"])
+    # Set up a loop device for the disk image
+    loop_device = subprocess.run(
+        ["sudo", "losetup", "--show", "-Pf", image_path], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    # Format each partition with ext4
+    for i in range(1, partitions_count + 1):
+        subprocess.run(["sudo", "mkfs.ext4", "-F", f"{loop_device}p{i}"], check=True)
+
+    # Detach loop device
+    subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
 
     return image_path
 
@@ -98,12 +120,14 @@ def unmount_disk(device_path: str) -> None:
     Args:
         device_path (str): The path to the device to unmount.
     """
-
-    rc = subprocess.run(["sudo", "umount", device_path], check=False)
-    while rc.returncode != 0:
-        print(f"Failed to unmount {device_path}. Retrying...")
-        sleep(0.1)
+    # Check if the device is already mounted
+    mounts = subprocess.check_output(["mount"]).decode()
+    if device_path in mounts:
         rc = subprocess.run(["sudo", "umount", device_path], check=False)
+        while rc.returncode != 0:
+            print(f"Failed to unmount {device_path}. Retrying...")
+            sleep(0.1)
+            rc = subprocess.run(["sudo", "umount", device_path], check=False)
 
 
 def fill_disk_image_with_data(image_path: str, files_n: int = None) -> None:
@@ -261,22 +285,25 @@ def is_partition_content_similar(partition: str, img: str) -> bool:
     return test_result
 
 
-def inspect_image(image_path: str) -> bool:
+def inspect_image(image_path: str, partitions: list[int]) -> bool:
     """TODO"""
 
-    loop_device = make_image_mountable(image_path)
-    test_mount_point = os.path.abspath("test_data/mount_point")
+    if not os.path.exists(image_path):
+        print(f"Image {image_path} does not exist.")
+        return False
 
+    loop_device = make_image_mountable(image_path)
+    test_mount_point = os.path.abspath("test_data/inspect_mount_point")
     try:
         subprocess.run(["mkdir", "-p", test_mount_point], check=True)
-        subprocess.run(["sudo", "mount", loop_device, test_mount_point], check=True)
-
-        for root, _, files in os.walk(test_mount_point):
-            for name in files:
-                print(os.path.join(root, name))
+        for partition in partitions:
+            partition_path = f"{loop_device}p{partition}"
+            subprocess.run(["sudo", "mount", partition_path, test_mount_point], check=True)
+            print(f"Partition {partition} mounted at {test_mount_point}")
+            unmount_disk(test_mount_point)
 
     finally:
-        unmount_disk(test_mount_point)
+        # unmount_disk(test_mount_point)
         subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
         subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
 

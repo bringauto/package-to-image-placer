@@ -25,19 +25,19 @@ def test_write_one_package(package_to_image_placer_binary):
     img_out = "test_data/test_img_out.img"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
-    partition_numbers = [1]
+    partitions = [1, 2]
 
     create_test_package(package, 2)
-    create_image(img_in, "10MB")
+    create_image(img_in, "10MB", 2)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [package_zip], partition_numbers)
+    create_config(config, img_in, img_out, [package_zip], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
     assert result.returncode == 0
 
-    # assert inspect_image(img_out)
+    assert inspect_image(img_out, partitions)
 
 
 # def test_app_finishes(target_disk_setup_binary):
