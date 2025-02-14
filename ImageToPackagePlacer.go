@@ -56,12 +56,14 @@ func main() {
 		err = helper.ValidSourceImage(imagePath)
 		if err != nil {
 			user.CleanUpCommandLine()
+			helper.RemoveInvalidOutputImage(config.Target)
 			log.Fatalf("Error: %s\n", err)
 		}
 
 		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
 		if err != nil {
 			user.CleanUpCommandLine()
+			helper.RemoveInvalidOutputImage(config.Target)
 			log.Fatalf("Error while selecting partitions: %s\n", err)
 		}
 
@@ -85,21 +87,26 @@ func main() {
 			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
 			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
 				user.CleanUpCommandLine()
+				helper.RemoveInvalidOutputImage(config.Target)
 				log.Fatalf("file already exists and user chose not to delete it")
 			}
 			if err := os.Remove(config.Target); err != nil {
 				user.CleanUpCommandLine()
+				helper.RemoveInvalidOutputImage(config.Target)
 				log.Fatalf("unable to delete existing file: %s", err)
 			}
 		}
 		err := image.CloneImage(config.Source, config.Target)
 		if err != nil {
+			user.CleanUpCommandLine()
+			helper.RemoveInvalidOutputImage(config.Target)
 			log.Fatalf("Error: %s\n", err)
 		}
 	}
 
 	err = image.CopyPackageToImagePartitions(&config)
 	if err != nil {
+		helper.RemoveInvalidOutputImage(config.Target)
 		log.Printf("Error: %s\n", err)
 		return
 	}

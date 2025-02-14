@@ -43,11 +43,12 @@ func AllDepsInstalled() error {
 	return nil
 }
 
+// ValidSourceImage checks if the source image exists and is a non empty file.
+// Returns an error if the source image does not exist, is a directory or is empty.
 func ValidSourceImage(imagePath string) error {
 	if !DoesFileExists(imagePath) {
 		return fmt.Errorf("source image file does not exist: %s", imagePath)
 	}
-
 	fileInfo, err := os.Stat(imagePath)
 	if err != nil {
 		return err
@@ -57,6 +58,18 @@ func ValidSourceImage(imagePath string) error {
 	}
 	if fileInfo.Size() == 0 {
 		return fmt.Errorf("source image file is empty: %s", imagePath)
+	}
+	return nil
+}
+
+// RemoveInvalidOutputImage removes the output image if it exists.
+// Returns an error if the output image exists and cannot be removed.
+func RemoveInvalidOutputImage(outputImage string) error {
+	if DoesFileExists(outputImage) {
+		err := os.Remove(outputImage)
+		if err != nil {
+			return fmt.Errorf("failed to remove invalid output image: %s", outputImage)
+		}
 	}
 	return nil
 }
