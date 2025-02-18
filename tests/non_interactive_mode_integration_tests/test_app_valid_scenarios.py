@@ -25,9 +25,9 @@ def test_write_one_package(package_to_image_placer_binary):
     img_out = "test_data/test_img_out.img"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
-    partitions = [1, 2]
+    partitions = [1]
 
-    create_test_package(package, 2)
+    create_test_package(package, "10KB")
     create_image(img_in, "10MB", 2)
     make_image_mountable(img_in)
 
@@ -37,7 +37,7 @@ def test_write_one_package(package_to_image_placer_binary):
 
     assert result.returncode == 0
 
-    assert inspect_image(img_out, partitions)
+    assert inspect_image(config)
 
 
 # def test_app_finishes(target_disk_setup_binary):

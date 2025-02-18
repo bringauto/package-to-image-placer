@@ -35,7 +35,7 @@ def test_empty_image_file(package_to_image_placer_binary):
 
     subprocess.run(["touch", img_in])
 
-    create_test_package(package, 2)
+    create_test_package(package, "1KB")
 
     create_config(config, img_in, img_out, [package_zip], partition_numbers)
 
@@ -63,7 +63,7 @@ def test_invalid_image_file(package_to_image_placer_binary):
     if pathlib.Path(img_out).exists():
         os.remove(img_out)
 
-    create_test_package(package, 2)
+    create_test_package(package, "2KB")
 
     create_config(config, img_in, img_out, [package_zip], partition_numbers)
 

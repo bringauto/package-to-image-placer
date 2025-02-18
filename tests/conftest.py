@@ -1,7 +1,6 @@
 import pytest
 import subprocess
 import os
-import shutil
 
 
 @pytest.fixture(scope="session")
@@ -25,7 +24,7 @@ def clean_up_between_tests():
 
     subprocess.run(["sudo", "losetup", "-D"], check=True)
     # Clean up
-    # shutil.rmtree(test_data_dir)
+    subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
