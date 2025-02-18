@@ -256,7 +256,6 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 // ReadStringFromUser reads a string input from the user.
 // Returns the input string.
 func ReadStringFromUser(prompt string) (string, error) {
-	CleanUpCommandLineSilent()
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Printf(interactionTextColor + prompt + colorReset)
@@ -264,7 +263,6 @@ func ReadStringFromUser(prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	setUpCommandLineSilent()
 	return strings.TrimSpace(path), nil
 }
 
@@ -291,6 +289,8 @@ func getDirectories(path string, rootDir string) ([]string, error) {
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.
 // Returns true if the user confirms, false otherwise.
 func GetUserConfirmation(message string) bool {
+	SetUpCommandline()
+	defer CleanUpCommandLine()
 	var b = make([]byte, 1)
 	fmt.Print(interactionTextColor + message + colorReset + " [Y|y to confirm, any other key to cancel]\n")
 	_, err := os.Stdin.Read(b)
@@ -310,11 +310,6 @@ func SetUpCommandline() {
 		return
 	}
 	//do not cache characters
-	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
-	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
-}
-
-func setUpCommandLineSilent() {
 	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
 	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
 }

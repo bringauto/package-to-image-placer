@@ -38,8 +38,6 @@ func main() {
 
 	newConfigFilePath := ""
 	if config.InteractiveRun {
-		user.SetUpCommandline()
-		defer user.CleanUpCommandLine()
 		config.Packages, err = user.SelectFilesInDir(config.PackageDir)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
@@ -55,14 +53,12 @@ func main() {
 
 		err = helper.ValidSourceImage(imagePath)
 		if err != nil {
-			user.CleanUpCommandLine()
 			helper.RemoveInvalidOutputImage(config.Target)
 			log.Fatalf("Error: %s\n", err)
 		}
 
 		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
 		if err != nil {
-			user.CleanUpCommandLine()
 			helper.RemoveInvalidOutputImage(config.Target)
 			log.Fatalf("Error while selecting partitions: %s\n", err)
 		}
@@ -86,19 +82,15 @@ func main() {
 		if helper.DoesFileExists(config.Target) {
 			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
 			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
-				user.CleanUpCommandLine()
-				helper.RemoveInvalidOutputImage(config.Target)
+				// helper.RemoveInvalidOutputImage(config.Target) This line should not be called here, as it will remove the image file, which is not desired
 				log.Fatalf("file already exists and user chose not to delete it")
 			}
 			if err := os.Remove(config.Target); err != nil {
-				user.CleanUpCommandLine()
-				helper.RemoveInvalidOutputImage(config.Target)
 				log.Fatalf("unable to delete existing file: %s", err)
 			}
 		}
 		err := image.CloneImage(config.Source, config.Target)
 		if err != nil {
-			user.CleanUpCommandLine()
 			helper.RemoveInvalidOutputImage(config.Target)
 			log.Fatalf("Error: %s\n", err)
 		}
