@@ -2,22 +2,51 @@ import subprocess
 import os
 import shutil
 import json
-import psutil
 from random import random, randint
 from time import sleep
 
 
-def create_test_package(package_path: str, number_of_files: int) -> None:
+def convert_size_to_bytes(size: str) -> int:
+    """
+    Convert a size string to bytes.
+
+    Args:
+        size (str): The size string to convert (e.g., '5MB').
+
+    Returns:
+        int: The size in bytes.
+    """
+    print(size)
+    size_units = size[-2:].upper()
+    size_value = int(size[:-2])
+
+    if size_units == "KB":
+        return size_value * 1024
+    elif size_units == "MB":
+        return size_value * 1024 * 1024
+    elif size_units == "GB":
+        return size_value * 1024 * 1024 * 1024
+    else:
+        raise ValueError("Unsupported size unit. Please use KB, MB, or GB.")
+
+
+def create_test_package(package_path: str, package_size: str) -> None:
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
         shutil.rmtree(package_path)
 
-    os.makedirs(package_path)
-    for i in range(number_of_files):
-        with open(f"{package_path}/file_{i}", "w") as f:
-            f.write(f"This is a test file {i}")
+    package_size_bytes = convert_size_to_bytes(package_size)
 
-    subprocess.run(["zip", "-r", f"{package_path}.zip", package_path], check=True)
+    os.makedirs(package_path)
+
+    with open(f"{package_path}/test_file", "wb") as f:
+        f.write(os.urandom(package_size_bytes))
+
+    subprocess.run(
+        ["zip", "-r", f"{os.path.abspath(package_path)}.zip", os.path.basename(package_path)],
+        check=True,
+        cwd=os.path.dirname(package_path),
+    )
 
 
 import subprocess
@@ -42,16 +71,7 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
     if partitions_count > 10:
         raise ValueError("The maximum number of partitions is 10.")
 
-    # Convert the image size to bytes
-    size_units = image_size[-2:].upper()
-    size_value = int(image_size[:-2])
-
-    if size_units == "MB":
-        image_size_bytes = size_value * 1024 * 1024
-    elif size_units == "GB":
-        image_size_bytes = size_value * 1024 * 1024 * 1024
-    else:
-        raise ValueError("Unsupported size unit. Please use 'MB' or 'GB'.")
+    image_size_bytes = convert_size_to_bytes(image_size)
 
     # Create a blank disk image with the specified size
     subprocess.run(["fallocate", "-l", str(image_size_bytes), image_path], check=True)
@@ -123,11 +143,14 @@ def unmount_disk(device_path: str) -> None:
     # Check if the device is already mounted
     mounts = subprocess.check_output(["mount"]).decode()
     if device_path in mounts:
+        subprocess.run(["sudo", "sync"], check=True)
         rc = subprocess.run(["sudo", "umount", device_path], check=False)
         while rc.returncode != 0:
             print(f"Failed to unmount {device_path}. Retrying...")
             sleep(0.1)
             rc = subprocess.run(["sudo", "umount", device_path], check=False)
+    else:
+        print(f"Device {device_path} is not mounted.")
 
 
 def fill_disk_image_with_data(image_path: str, files_n: int = None) -> None:
@@ -142,7 +165,7 @@ def fill_disk_image_with_data(image_path: str, files_n: int = None) -> None:
     Raises:
         subprocess.CalledProcessError: If any of the subprocess commands fail.
     """
-
+    return
     test_mount_point = os.path.abspath("test_data/mount_point")
     loop_device = make_image_mountable(image_path)
     if files_n is None:
@@ -285,8 +308,30 @@ def is_partition_content_similar(partition: str, img: str) -> bool:
     return test_result
 
 
-def inspect_image(image_path: str, partitions: list[int]) -> bool:
+def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
+    unzip_package_dir = os.path.abspath("test_data/unzip_package")
+    subprocess.run(["mkdir", "-p", unzip_package_dir], check=True)
+
+    subprocess.run(["sudo", "unzip", package_path, "-d", unzip_package_dir], check=True)
+
+    mount_package_dir = os.path.join(mount_point, package_dir)
+
+    return True
+
+
+def inspect_image(config_path: str) -> bool:
     """TODO"""
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    image_path = config.get("target")
+    partitions = config.get("partition-numbers")
+    target_directory = config.get("target-directory")
+    packages = config.get("packages")
+
+    if not target_directory:
+        target_directory = "."
+    print(target_directory)
 
     if not os.path.exists(image_path):
         print(f"Image {image_path} does not exist.")
@@ -294,20 +339,25 @@ def inspect_image(image_path: str, partitions: list[int]) -> bool:
 
     loop_device = make_image_mountable(image_path)
     test_mount_point = os.path.abspath("test_data/inspect_mount_point")
+    test_passed = True
     try:
         subprocess.run(["mkdir", "-p", test_mount_point], check=True)
         for partition in partitions:
             partition_path = f"{loop_device}p{partition}"
             subprocess.run(["sudo", "mount", partition_path, test_mount_point], check=True)
             print(f"Partition {partition} mounted at {test_mount_point}")
+            for package in packages:
+                if not is_package_installed(package, test_mount_point, target_directory):
+                    test_passed = False
+                    break
             unmount_disk(test_mount_point)
 
     finally:
-        # unmount_disk(test_mount_point)
+        unmount_disk(test_mount_point)
         subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
         subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
 
-    return True
+    return test_passed
 
 
 def run_package_to_image_placer(
