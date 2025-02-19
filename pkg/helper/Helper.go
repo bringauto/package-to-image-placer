@@ -64,8 +64,8 @@ func ValidSourceImage(imagePath string) error {
 
 // RemoveInvalidOutputImage removes the output image if it exists.
 // Returns an error if the output image exists and cannot be removed.
-func RemoveInvalidOutputImage(outputImage string) error {
-	if DoesFileExists(outputImage) {
+func RemoveInvalidOutputImage(outputImage string, no_clone bool) error {
+	if DoesFileExists(outputImage) && !no_clone {
 		err := os.Remove(outputImage)
 		if err != nil {
 			return fmt.Errorf("failed to remove invalid output image: %s", outputImage)
