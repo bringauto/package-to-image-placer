@@ -126,11 +126,16 @@ def test_double_write_without_override(package_to_image_placer_binary):
     assert result.returncode == 0
     assert inspect_image(config_1)
 
+    # crete file that will be deleted because of the second run that will fail
+    with open(img_out_2, "wb") as f:
+        f.write(b"0")
+    assert os.path.exists(img_out_2)
+
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config_2)
 
     assert result.returncode == 1
+
+    assert not os.path.exists(img_out_2)
+
     # check if the source image was not damaged during second run
     assert inspect_image(config_1)
-
-
-# def test_double_write_without_override_check_if

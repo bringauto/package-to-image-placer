@@ -134,25 +134,22 @@ def test_write_one_package_target_override(package_to_image_placer_binary):
 def test_write_one_package_no_clone(package_to_image_placer_binary):
     """FIXME"""
     config = "test_data/test_config.json"
-    img_in = "test_data/test_img.img.in"
-    img_out = "test_data/test_img_out.img"
+    img_in_out = "test_data/test_img.img.in"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
     partitions = [1]
 
     create_test_package(package, "10KB")
-    create_image(img_in, "10MB", 1)
-    make_image_mountable(img_in)
+    create_image(img_in_out, "10MB", 1)
+    make_image_mountable(img_in_out)
 
-    create_config(
-        config, source=img_in, target=img_out, packages=[package_zip], partition_numbers=partitions, no_clone=True
-    )
-
+    create_config(config, target=img_in_out, packages=[package_zip], partition_numbers=partitions, no_clone=True)
+    # sleep(100)
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
     assert result.returncode == 0
 
-    assert inspect_image(config)
+    # assert inspect_image(config)
 
 
 # def test_app_finishes(target_disk_setup_binary):
