@@ -49,13 +49,6 @@ def create_test_package(package_path: str, package_size: str) -> None:
     )
 
 
-import subprocess
-import os
-
-
-import subprocess
-
-
 def create_image(image_path: str, image_size: str, partitions_count: int) -> str:
     """
     Create a disk image with the specified size and partition table (DOS/MBR).
@@ -63,7 +56,7 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
     Args:
         image_path (str): The path where the disk image will be created.
         image_size (str): The size of the disk image (e.g., '5MB').
-        partitions_count (int): The number of partitions to create.
+        partitions_count (int): The number of partitions to create. Partition size will be calculated based on this value and the total disk size.
 
     Returns:
         str: The path to the created disk image.
@@ -109,10 +102,10 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
 
 def create_config(
     config_path: str,
-    source: str,
-    target: str,
-    packages: list[str],
-    partition_numbers: list[int],
+    source: str = "",
+    target: str = "",
+    packages: list[str] = [],
+    partition_numbers: list[int] = [],
     service_files: list[str] = [],
     target_directory: str = None,
     no_clone: bool = False,
@@ -130,7 +123,7 @@ def create_config(
     }
 
     with open(config_path, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4)
 
 
 def unmount_disk(device_path: str) -> None:
@@ -151,53 +144,6 @@ def unmount_disk(device_path: str) -> None:
             rc = subprocess.run(["sudo", "umount", device_path], check=False)
     else:
         print(f"Device {device_path} is not mounted.")
-
-
-def fill_disk_image_with_data(image_path: str, files_n: int = None) -> None:
-    """
-    Fills a disk image with random data files.
-
-    Args:
-        image_path (str): The path to the disk image file.
-        files_n (int, optional): The number of random data files to create. If not specified, a random number between
-                                 10 and 50 will be used.
-
-    Raises:
-        subprocess.CalledProcessError: If any of the subprocess commands fail.
-    """
-    return
-    test_mount_point = os.path.abspath("test_data/mount_point")
-    loop_device = make_image_mountable(image_path)
-    if files_n is None:
-        files_n = randint(10, 50)
-
-    try:
-        subprocess.run(["mkdir", "-p", test_mount_point], check=True)
-        subprocess.run(["sudo", "mount", loop_device, test_mount_point], check=True)
-
-        statvfs = os.statvfs(test_mount_point)
-        available_size = statvfs.f_frsize * statvfs.f_bavail
-        print(f"Available size in image {image_path}: {available_size} B")
-
-        for i in range(files_n):
-            # The size of the random data is between 0.5 and 0.9 of the image size and is divided by the number of files
-            random_file_size = int(((random() / 10 * 4) + 0.5) * available_size) // files_n
-            random_file_path = f"{test_mount_point}/random_data_{i}"
-
-            subprocess.run(["sudo", "touch", random_file_path], check=True)
-            subprocess.run(["sudo", "chmod", "666", random_file_path], check=True)
-            with open(random_file_path, "wb") as f:
-                f.write(os.urandom(random_file_size))
-
-    finally:
-        unmount_disk(test_mount_point)
-        subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
-        subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
-
-
-def fill_disk_images_with_data(image_paths: list[str], files_n: int = None) -> None:
-    for image_path in image_paths:
-        fill_disk_image_with_data(image_path, files_n)
 
 
 def make_image_mountable(image_path: str) -> str:
@@ -221,95 +167,10 @@ def make_image_mountable(image_path: str) -> str:
     return loop_device.stdout.strip()
 
 
-def calculate_device_hash(device: str, chunk_size: int = 8192, device_coverage: float = 0.1) -> str:
-    """
-    Calculate the hash of a device.
-
-    Args:
-        device (str): The path to the device.
-        chunk_size (int): The size of the chunks to read from the device.
-        device_coverage (float): The percentage of the device to read.
-
-    Returns:
-        str: The hash of the device.
-    """
-
-    hash = xxhash.xxh64()
-    device_size = int(subprocess.check_output(["sudo", "blockdev", "--getsize64", device]).strip())
-
-    # Calculate the number of chunks to read when hashing device
-    n_chunks = device_size * device_coverage // chunk_size
-    chunk_jump = device_size // n_chunks
-    offset = 0
-
-    with subprocess.Popen(["sudo", "cat", device], stdout=subprocess.PIPE) as proc:
-        while offset < device_size:
-            chunk = proc.stdout.read(chunk_size)
-            if not chunk:
-                break
-            hash.update(chunk)
-            offset += chunk_jump
-
-    return hash.hexdigest()
-
-
-def is_partition_content_similar(partition: str, img: str) -> bool:
-    """
-    Compare the content of a partition with the content of an image.
-
-    Args:
-        partition (str): The path to the partition.
-        img (str): The path to the image.
-
-    Returns:
-        bool: True if the content of the partition is similar to the content of the image, False otherwise.
-    """
-
-    print(f"Comparing {partition} with {img}")
-    test_result = True
-    loop_device = make_image_mountable(img)
-    test_partition_mount_point = os.path.abspath("test_data/partition_mount_point")
-    test_img_mount_point = os.path.abspath("test_data/img_mount_point")
-
-    try:
-        subprocess.run(["mkdir", "-p", test_partition_mount_point], check=True)
-        subprocess.run(["mkdir", "-p", test_img_mount_point], check=True)
-        subprocess.run(["sudo", "mount", partition, test_partition_mount_point], check=True)
-        subprocess.run(["sudo", "mount", loop_device, test_img_mount_point], check=True)
-
-        partition_files = []
-        for root, _, files in os.walk(test_partition_mount_point):
-            for name in files:
-                partition_files.append(os.path.join(root, name))
-
-        img_files = []
-        for root, _, files in os.walk(test_img_mount_point):
-            for name in files:
-                img_files.append(os.path.join(root, name))
-
-        partition_files = sorted(partition_files)
-        img_files = sorted(img_files)
-        if len(partition_files) != len(img_files):
-            print(f"Number of files in partition and img are different: {len(partition_files)} != {len(img_files)}")
-            test_result = False
-
-        for f1, f2 in zip(partition_files, img_files):
-            if not are_files_same(f1, f2):
-                test_result = False
-                break
-
-    finally:
-        subprocess.run(["sudo", "sync"], check=True)
-        unmount_disk(test_partition_mount_point)
-        unmount_disk(test_img_mount_point)
-        subprocess.run(["sudo", "rmdir", test_partition_mount_point], check=True)
-        subprocess.run(["sudo", "rmdir", test_img_mount_point], check=True)
-        subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
-    return test_result
-
-
 def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
+    if os.path.exists(unzip_package_dir):
+        subprocess.run(["sudo", "rm", "-rf", unzip_package_dir], check=True)
     os.makedirs(unzip_package_dir, exist_ok=True)
 
     subprocess.run(["sudo", "unzip", "-o", package_path, "-d", unzip_package_dir], check=True)
@@ -318,6 +179,7 @@ def is_package_installed(package_path: str, mount_point: str, package_dir: str) 
     mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
 
     diff_result = subprocess.run(["diff", "-r", unzip_package_dir, mount_package_dir], capture_output=True, text=True)
+    print("Diff: ", diff_result.returncode, diff_result.stdout, diff_result.stderr)
 
     return diff_result.returncode == 0
 
@@ -350,6 +212,7 @@ def inspect_image(config_path: str) -> bool:
             subprocess.run(["sudo", "mount", partition_path, test_mount_point], check=True)
             print(f"Partition {partition} mounted at {test_mount_point}")
             for package in packages:
+                print(f"Partition: {partition}, Package: {package}")
                 if not is_package_installed(package, test_mount_point, target_directory):
                     test_passed = False
                     break
