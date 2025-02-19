@@ -310,13 +310,16 @@ def is_partition_content_similar(partition: str, img: str) -> bool:
 
 def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
-    subprocess.run(["mkdir", "-p", unzip_package_dir], check=True)
+    os.makedirs(unzip_package_dir, exist_ok=True)
 
-    subprocess.run(["sudo", "unzip", package_path, "-d", unzip_package_dir], check=True)
+    subprocess.run(["sudo", "unzip", "-o", package_path, "-d", unzip_package_dir], check=True)
 
-    mount_package_dir = os.path.join(mount_point, package_dir)
+    packet_name = os.path.basename(package_path).split(".")[0]
+    mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
 
-    return True
+    diff_result = subprocess.run(["diff", "-r", unzip_package_dir, mount_package_dir], capture_output=True, text=True)
+
+    return diff_result.returncode == 0
 
 
 def inspect_image(config_path: str) -> bool:
