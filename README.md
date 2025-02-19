@@ -48,7 +48,7 @@ For non-interactive mode, run:
   * If used with no-clone option this file must exist and will be changed.
 * `-config` - Path to the config file. Sets Non-interactive mode.
 * `-no-clone` - Do not clone the source image. The target image must exist.
-* `-overwrite` - Overwrite the target image if it exists.
+* `-overwrite` - Overwrite files in target image if it exists.
 * `-package-dir` - Initial directory for the package selection. Interactive mode only.
 * `-target-dir` - Override target directory on the image from config. Non-interactive mode only.
 * `-log-path` - Path to the log file. Default is `./package_to_image_placer.log`.
