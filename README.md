@@ -41,13 +41,15 @@ For non-interactive mode, run:
 ./package-to-image-placer -config <config_file_path> [ <overrides> ]
 ```
 
+In non-interactive mode, if the target image already exists, it will be modified. If the operation fails, the target image will be removed to prevent an inconsistent state.
+
 ### Arguments
 
 * `-source` - Path to the source image.
 * `-target` - Path to the target image. The path will be created and can't be same as source image path.
   * If used with no-clone option this file must exist and will be changed.
 * `-config` - Path to the config file. Sets Non-interactive mode.
-* `-no-clone` - Do not clone the source image. The target image must exist.
+* `-no-clone` - Do not clone the source image. The target image must exist. If the operation fails, it may leave the image in an inconsistent state.
 * `-overwrite` - Overwrite files in target image if it exists.
 * `-package-dir` - Initial directory for the package selection. Interactive mode only.
 * `-target-dir` - Override target directory on the image from config. Non-interactive mode only.
@@ -90,7 +92,6 @@ Config structure is as follows:
   "overwrite": <bool>
 }
 ```
-
 
 ## Libguest installation
 
