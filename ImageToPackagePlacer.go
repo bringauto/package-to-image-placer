@@ -161,15 +161,15 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 	if *targetImage != "" {
 		config.Target = *targetImage
 	}
-	//if *overwrite {
-	config.Overwrite = *overwrite
-	//}
 	if *targetDirectory != "" {
 		config.TargetDirectory = *targetDirectory
 	}
-	config.NoClone = *noClone
+	if *logPath != "./" {
+		config.LogPath = *logPath
+	}
+	config.Overwrite = config.Overwrite || *overwrite
+	config.NoClone = config.NoClone || *noClone
 	config.PackageDir = *packageDirectory
-	config.LogPath = *logPath
 
 	config.InteractiveRun = interactiveRun
 	return config, nil
