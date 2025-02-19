@@ -47,6 +47,7 @@ func TestValidateConfiguration_Success(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
+		LogPath:          ".",
 	}
 
 	err := ValidateConfiguration(config)
@@ -67,6 +68,7 @@ func TestValidateConfiguration_PackageNotExist(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
+		LogPath:          ".",
 	}
 
 	err := ValidateConfiguration(config)
@@ -86,6 +88,7 @@ func TestValidateConfiguration_MissingTarget(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
+		LogPath:          ".",
 	}
 
 	err := ValidateConfiguration(config)
@@ -106,6 +109,7 @@ func TestValidateConfiguration_SameSourceAndTarget(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
+		LogPath:          ".",
 	}
 
 	err := ValidateConfiguration(config)
@@ -125,6 +129,7 @@ func TestValidateConfiguration_NoSourceAndNoClone(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
+		LogPath:          ".",
 	}
 
 	err := ValidateConfiguration(config)
@@ -144,6 +149,7 @@ func TestValidateConfiguration_NoCloneTargetDoesNotExist(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
+		LogPath:          ".",
 	}
 
 	err := ValidateConfiguration(config)

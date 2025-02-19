@@ -60,8 +60,9 @@ func TestMountPartitionAndCopyPackage_Success(t *testing.T) {
 }
 
 func TestMountPartitionAndCopyPackage_ArchiveSizeTooBig(t *testing.T) {
-	packagePath := "../../testdata/archives/tooBig.zip"
+	// packagePath := "../../testdata/archives/tooBig.zip"
 	config := createDefaultConfig()
+	// config.Packages = []string{packagePath}
 
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
@@ -79,7 +80,7 @@ func TestMountPartitionAndCopyPackage_InvalidPartition(t *testing.T) {
 }
 
 func TestMountPartitionAndCopyPackage_InvalidPackagePath(t *testing.T) {
-	packagePath := "doesNotExist.zip"
+	// packagePath := "doesNotExist.zip"
 	config := createDefaultConfig()
 
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)

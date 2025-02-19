@@ -1,5 +1,9 @@
 # Tests documentation
 
+## TODO
+
+- unit tests are failing
+
 ## Requirements
 
 The tests share the same requirements as the program itself and additionally depend on standard Linux utilities and Python 3. Written in Python, they leverage pytest for execution. It is recommended to use a virtual environment for managing Python dependencies.
@@ -56,3 +60,4 @@ This test suit tests if the application runs correctly with valid arguments.
 
 - test that the packages fits on disk
 - symlink to the package
+
