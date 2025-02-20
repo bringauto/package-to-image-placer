@@ -167,8 +167,24 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 	if *logPath != "./" {
 		config.LogPath = *logPath
 	}
-	config.Overwrite = config.Overwrite || *overwrite
-	config.NoClone = config.NoClone || *noClone
+
+	// Check if the overwrite flag has been set
+	overwriteSet := false
+	noCloneSet := false
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == "overwrite" {
+			overwriteSet = true
+		}
+		if f.Name == "no-clone" {
+			noCloneSet = true
+		}
+	})
+	if overwriteSet {
+		config.Overwrite = *overwrite
+	}
+	if noCloneSet {
+		config.NoClone = *noClone
+	}
 	config.PackageDir = *packageDirectory
 
 	config.InteractiveRun = interactiveRun
