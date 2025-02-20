@@ -110,6 +110,7 @@ def create_config(
     target_directory: str = None,
     no_clone: bool = False,
     overwrite: bool = False,
+    log_path: str = ".",
 ) -> None:
     data = {
         "source": source,
@@ -120,6 +121,7 @@ def create_config(
         "target-directory": target_directory,
         "no-clone": no_clone,
         "overwrite": overwrite,
+        "log-path": log_path,
     }
 
     with open(config_path, "w") as f:
