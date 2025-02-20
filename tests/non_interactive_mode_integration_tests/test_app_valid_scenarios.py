@@ -150,7 +150,7 @@ def test_write_one_package_no_clone(package_to_image_placer_binary):
     assert inspect_image(config)
 
 
-def test_write_one_package_overwrite_config_value_to_true(package_to_image_placer_binary):
+def test_write_one_package_overwrite_config_overwrite_value_to_true(package_to_image_placer_binary):
     """TODO"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -184,8 +184,9 @@ def test_write_one_package_overwrite_config_value_to_true(package_to_image_place
     assert inspect_image(config)
 
 
-def test_write_one_package_overwrite_config_value_to_false(package_to_image_placer_binary):
+def test_write_one_package_overwrite_config_overwrite_value_to_false(package_to_image_placer_binary):
     """TODO"""
+
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out_1 = "test_data/test_img_out_1.img"
@@ -210,3 +211,41 @@ def test_write_one_package_overwrite_config_value_to_false(package_to_image_plac
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config, overwrite=False)
     assert result.returncode == 1
     assert not os.path.exists(img_out_2)
+
+
+def test_write_one_package_overwrite_config_no_clone_value_to_true(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    create_image(img_in_out, "10MB", 1)
+    make_image_mountable(img_in_out)
+
+    create_config(config, target=img_in_out, packages=[package_zip], partition_numbers=partitions, no_clone=False)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config, no_clone=True)
+    assert result.returncode == 0
+    assert inspect_image(config)
+
+
+def test_write_one_package_overwrite_config_no_clone_value_to_false(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    create_image(img_in_out, "10MB", 1)
+    make_image_mountable(img_in_out)
+
+    create_config(config, target=img_in_out, packages=[package_zip], partition_numbers=partitions, no_clone=True)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config, no_clone=False)
+    assert result.returncode == 1
+    assert not inspect_image(config)
