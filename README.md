@@ -89,7 +89,8 @@ Config structure is as follows:
   ],
   "target-directory": "<target-directory-on-image>",
   "no-clone": <bool>,
-  "overwrite": <bool>
+  "overwrite": <bool>,
+  "log-path": "<log-path>"
 }
 ```
 
