@@ -8,6 +8,7 @@ from test_utils.test_utils import (
     make_image_mountable,
     create_config,
     inspect_image,
+    crete_symlink,
 )
 
 
@@ -102,6 +103,29 @@ def test_write_multiple_packages_to_multiple_partitions(package_to_image_placer_
     assert inspect_image(config)
 
 
+def test_pass_package_as_symlink(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    package_symlink = package + "_symlink.zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    crete_symlink(package_zip, package_symlink)
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    create_config(config, img_in, img_out, [package_symlink], partitions)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 0
+
+    assert inspect_image(config)
+
+
 def test_write_one_package_target_override(package_to_image_placer_binary):
     """TODO"""
     config = "test_data/test_config.json"
@@ -126,8 +150,6 @@ def test_write_one_package_target_override(package_to_image_placer_binary):
 
     assert inspect_image(config)
 
-    # sleep(100)
-
 
 def test_write_one_package_no_clone(package_to_image_placer_binary):
     """TODO"""
@@ -142,7 +164,7 @@ def test_write_one_package_no_clone(package_to_image_placer_binary):
     make_image_mountable(img_in_out)
 
     create_config(config, target=img_in_out, packages=[package_zip], partition_numbers=partitions, no_clone=True)
-    # sleep(100)
+
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
     assert result.returncode == 0

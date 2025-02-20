@@ -31,6 +31,7 @@ def convert_size_to_bytes(size: str) -> int:
 
 
 def create_test_package(package_path: str, package_size: str) -> None:
+    """TODO"""
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
         shutil.rmtree(package_path)
@@ -47,6 +48,13 @@ def create_test_package(package_path: str, package_size: str) -> None:
         check=True,
         cwd=os.path.dirname(package_path),
     )
+
+
+def crete_symlink(source: str, target: str) -> None:
+    source = os.path.abspath(source)
+    if os.path.exists(target):
+        os.remove(target)
+    os.symlink(source, target)
 
 
 def create_image(image_path: str, image_size: str, partitions_count: int) -> str:
