@@ -32,16 +32,19 @@ go build
 For interactive mode, run:
 
 ```bash
-./package-to-image-placer -source <source_image_path> -target <target_image_path> [ -package-dir <package_dir> ... ]
+./package-to-image-placer -source=<source_image_path> -target=<target_image_path> [ -package-dir=<package_dir> ... ]
 ```
 
 For non-interactive mode, run:
 
 ```bash
-./package-to-image-placer -config <config_file_path> [ <overrides> ]
+./package-to-image-placer -config=<config_file_path> [ <overrides> ]
 ```
 
 In non-interactive mode, if the target image already exists, it will be modified. If the operation fails, the target image will be removed to prevent an inconsistent state.
+
+When passing arguments through the command line, it is recommended to use the `-name=value` format when the equal sign is used.
+
 
 ### Arguments
 
@@ -88,9 +91,9 @@ Config structure is as follows:
     "<service-file-name-with-suffix>"
   ],
   "target-directory": "<target-directory-on-image>",
+  "log-path": "<log-path>",
   "no-clone": <bool>,
-  "overwrite": <bool>,
-  "log-path": "<log-path>"
+  "overwrite": <bool>
 }
 ```
 
