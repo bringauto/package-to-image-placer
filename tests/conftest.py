@@ -18,13 +18,17 @@ def package_to_image_placer_binary():
 def clean_up_between_tests():
     """Set up the environment before each test is run and clean up after each test is run."""
     test_data_dir = "test_data"
+    # remove any previous test data
+    if os.path.exists(test_data_dir):
+        subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
+
     os.makedirs(test_data_dir, exist_ok=True)
 
     yield
 
     subprocess.run(["sudo", "losetup", "-D"], check=True)
     # Clean up
-    subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
+    # subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
 
 
 @pytest.fixture(scope="session", autouse=True)

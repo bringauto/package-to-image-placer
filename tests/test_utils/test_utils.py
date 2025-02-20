@@ -232,40 +232,41 @@ def run_package_to_image_placer(
     package_to_image_placer_binary: str,
     source: str = None,
     target: str = None,
-    config: bool = False,
-    no_clone: bool = False,
-    overwrite: bool = False,
-    package_dir: bool = False,
-    target_dir: bool = False,
-    send_to_stdin: str = "",
+    config: str = None,
+    no_clone: bool = None,
+    overwrite: bool = None,
+    package_dir: str = None,
+    target_dir: str = None,
+    log_path: str = ".",
+    send_to_stdin: str = None,
     result_list: list = None,
 ) -> subprocess.CompletedProcess:
 
     parameters = [package_to_image_placer_binary]
 
-    if source:
-        parameters.append(f"-source")
-        parameters.append(source)
+    if source is not None:
+        parameters.append(f"-source={source}")
 
-    if target:
-        parameters.append(f"-target")
-        parameters.append(target)
+    if target is not None:
+        parameters.append(f"-target={target}")
 
-    if config:
-        parameters.append("-config")
-        parameters.append(config)
+    if config is not None:
+        parameters.append(f"-config={config}")
 
-    if no_clone:
-        parameters.append("-no-clone")
+    if no_clone is not None:
+        parameters.append(f"-no-clone={no_clone}")
 
-    if overwrite:
-        parameters.append("-overwrite")
+    if overwrite is not None:
+        parameters.append(f"-overwrite={overwrite}")
 
-    if package_dir:
-        parameters.append("-package-dir")
+    if package_dir is not None:
+        parameters.append(f"-package-dir={package_dir}")
 
-    if target_dir:
-        parameters.append("-target-dir")
+    if target_dir is not None:
+        parameters.append(f"-target-dir={target_dir}")
+
+    if log_path is not None:
+        parameters.append(f"-log-path={log_path}")
 
     print(parameters)
 
