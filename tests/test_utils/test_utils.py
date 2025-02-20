@@ -31,6 +31,7 @@ def convert_size_to_bytes(size: str) -> int:
 
 
 def crete_symlink(source: str, target: str) -> None:
+    """TODO"""
     source = os.path.abspath(source)
     if os.path.exists(target):
         os.remove(target)
@@ -125,6 +126,7 @@ def create_config(
     overwrite: bool = False,
     log_path: str = ".",
 ) -> None:
+    """TODO"""
     data = {
         "source": source,
         "target": target,
@@ -183,6 +185,7 @@ def make_image_mountable(image_path: str) -> str:
 
 
 def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
+    """TODO"""
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
     if os.path.exists(unzip_package_dir):
         subprocess.run(["sudo", "rm", "-rf", unzip_package_dir], check=True)
@@ -194,6 +197,9 @@ def is_package_installed(package_path: str, mount_point: str, package_dir: str) 
     mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
 
     diff_result = subprocess.run(["diff", "-r", unzip_package_dir, mount_package_dir], capture_output=True, text=True)
+
+    if diff_result.returncode != 0:
+        return False
     print("Diff: ", diff_result.returncode, diff_result.stdout, diff_result.stderr)
 
     return diff_result.returncode == 0
@@ -254,7 +260,7 @@ def run_package_to_image_placer(
     send_to_stdin: str = None,
     result_list: list = None,
 ) -> subprocess.CompletedProcess:
-
+    """TODO"""
     parameters = [package_to_image_placer_binary]
 
     if source is not None:
