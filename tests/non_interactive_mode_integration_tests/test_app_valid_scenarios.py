@@ -208,7 +208,6 @@ def test_write_one_package_overwrite_config_overwrite_value_to_true(package_to_i
 
 def test_write_one_package_overwrite_config_overwrite_value_to_false(package_to_image_placer_binary):
     """TODO"""
-
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out_1 = "test_data/test_img_out_1.img"

@@ -30,7 +30,14 @@ def convert_size_to_bytes(size: str) -> int:
         raise ValueError("Unsupported size unit. Please use KB, MB, or GB.")
 
 
-def create_test_package(package_path: str, package_size: str) -> None:
+def crete_symlink(source: str, target: str) -> None:
+    source = os.path.abspath(source)
+    if os.path.exists(target):
+        os.remove(target)
+    os.symlink(source, target)
+
+
+def create_test_package(package_path: str, package_size: str, create_symlinks: bool = True) -> None:
     """TODO"""
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
@@ -43,18 +50,16 @@ def create_test_package(package_path: str, package_size: str) -> None:
     with open(f"{package_path}/test_file", "wb") as f:
         f.write(os.urandom(package_size_bytes))
 
+    if create_symlinks:
+        os.makedirs(f"{package_path}/symlinks")
+        for i in range(1, 6):
+            crete_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink_{i}")
+
     subprocess.run(
-        ["zip", "-r", f"{os.path.abspath(package_path)}.zip", os.path.basename(package_path)],
+        ["zip", "-ry", f"{os.path.abspath(package_path)}.zip", os.path.basename(package_path)],
         check=True,
         cwd=os.path.dirname(package_path),
     )
-
-
-def crete_symlink(source: str, target: str) -> None:
-    source = os.path.abspath(source)
-    if os.path.exists(target):
-        os.remove(target)
-    os.symlink(source, target)
 
 
 def create_image(image_path: str, image_size: str, partitions_count: int) -> str:
