@@ -18,9 +18,7 @@ pip install -r requirements.txt
 **⚠️ WARNING**  
 To ensure the tests run correctly, please take note of the following requirements:  
 
-1. **Disk Space:** Ensure that your system has **at least 100GB of free disk space** available before running the tests. Insufficient space may cause tests to fail or behave unexpectedly.  
-2. **Root Privileges:** The application runs with root privileges during testing. Therefore, you must provide the **root password** when prompted.
-3. **Close VSCode and other IDEs:** Ensure that VSCode or any other IDEs are closed before running the tests. These applications can consume significant amounts of RAM when loading testing files, potentially causing the system to freeze or crash.
+1. **Root Privileges:** The application runs with root privileges during testing. Therefore, you must provide the **root password** when prompted.
 
 ---
 
@@ -60,4 +58,3 @@ This test suit tests if the application runs correctly with valid arguments.
 
 - test that the packages fits on disk
 - symlink to the package
-
