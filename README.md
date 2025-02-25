@@ -87,7 +87,7 @@ Config structure is as follows:
   "partition-numbers": [ 
     <partition-number>
   ],
-  "service_files": [
+  "service-files": [
     "<service-file-name-with-suffix>"
   ],
   "target-directory": "<target-directory-on-image>",
