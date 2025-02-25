@@ -1,7 +1,14 @@
 import subprocess
 import pathlib
 import os
-from test_utils.test_utils import run_package_to_image_placer, create_config, create_test_package
+from test_utils.test_utils import (
+    run_package_to_image_placer,
+    create_config,
+    create_test_package,
+    create_image,
+    make_image_mountable,
+    inspect_image,
+)
 
 
 def test_invalid_file_paths(package_to_image_placer_binary):
@@ -74,24 +81,18 @@ def test_invalid_image_file(package_to_image_placer_binary):
     assert not pathlib.Path(img_out).exists()
 
 
-def test_invalid_config_format(package_to_image_placer_binary):
+def test_without_specified_partitions(package_to_image_placer_binary):
     """TODO"""
-    # return
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img"
     img_out = "test_data/test_img_out.img"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
-    partition_numbers = [1]
+    partition_numbers = []
 
-    # Create an empty file to simulate an invalid image
-    with open(img_in, "w") as f:
-        f.write("I'm just a text file")
-
-    if pathlib.Path(img_out).exists():
-        os.remove(img_out)
-
-    create_test_package(package, "2KB")
+    create_test_package(package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
 
     create_config(config, img_in, img_out, [package_zip], partition_numbers)
 
@@ -100,3 +101,58 @@ def test_invalid_config_format(package_to_image_placer_binary):
     assert result.returncode == 1
     assert result.stderr != ""
     assert not pathlib.Path(img_out).exists()
+
+
+def test_without_specified_packages(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img"
+    img_out = "test_data/test_img_out.img"
+    partition_numbers = [1]
+
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    create_config(config, img_in, img_out, [], partition_numbers)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 1
+    assert result.stderr != ""
+    assert not pathlib.Path(img_out).exists()
+
+
+def test_invalid_config_format(package_to_image_placer_binary):
+    """TODO"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    def remove_from_config_and_run(remove_from_config: list[str], expected_result: bool):
+        create_config(config, img_in, img_out, [package_zip], partitions, remove_from_config=remove_from_config)
+        result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+        if expected_result:
+            assert result.returncode == 0
+            assert inspect_image(config)
+        else:
+            assert result.returncode == 1
+            assert not pathlib.Path(img_out).exists()
+
+    remove_from_config_and_run(["source"], False)
+    remove_from_config_and_run(["target"], False)
+    remove_from_config_and_run(["packages"], False)
+    remove_from_config_and_run(["partition-numbers"], False)
+    remove_from_config_and_run(["packages"], False)
+    remove_from_config_and_run(["overwrite"], True)
+    remove_from_config_and_run(["no-clone"], True)
+    remove_from_config_and_run(["log-path"], True)
+    remove_from_config_and_run(["target-directory"], True)
+    remove_from_config_and_run(["service-files"], True)

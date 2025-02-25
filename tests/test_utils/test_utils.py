@@ -125,6 +125,7 @@ def create_config(
     no_clone: bool = False,
     overwrite: bool = False,
     log_path: str = ".",
+    remove_from_config: list[str] = [],
 ) -> None:
     """TODO"""
     data = {
@@ -132,12 +133,19 @@ def create_config(
         "target": target,
         "packages": packages,
         "partition-numbers": partition_numbers,
-        "service_files": service_files,
+        "service-files": service_files,
         "target-directory": target_directory,
         "no-clone": no_clone,
         "overwrite": overwrite,
         "log-path": log_path,
     }
+
+    for key in remove_from_config:
+        data.pop(key, None)
+
+    if os.path.exists(config_path):
+        print(f"Config file {config_path} already exists. Removing...")
+        os.remove(config_path)
 
     with open(config_path, "w") as f:
         json.dump(data, f, indent=4)
