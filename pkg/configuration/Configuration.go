@@ -106,8 +106,10 @@ func ValidateConfiguration(config Configuration) error {
 		}
 	}
 
-	if !helper.DoesFileExists(config.LogPath) {
+	// config.LogPath is there to avoid the error message when the log path is not defined
+	if !helper.DoesFileExists(config.LogPath) && config.LogPath != "" {
 		return fmt.Errorf("log path does not exist")
+
 	}
 	return nil
 }
