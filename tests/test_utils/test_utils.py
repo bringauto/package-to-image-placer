@@ -151,6 +151,29 @@ def create_config(
         json.dump(data, f, indent=4)
 
 
+def create_service_file(service_file_path: str) -> None:
+    """TODO"""
+    service_content = """[Unit]
+Description=My Custom Testing Service
+After=network.target
+
+[Service]
+ExecStart=echo "Hello, World!"
+Restart=always
+User=root
+WorkingDirectory=/
+
+[Install]
+WantedBy=multi-user.target"""
+
+    if os.path.exists(service_file_path):
+        print(f"Service file {service_file_path} already exists. Removing...")
+        os.remove(service_file_path)
+
+    with open(service_file_path, "w") as f:
+        f.write(service_content)
+
+
 def unmount_disk(device_path: str) -> None:
     """
     Unmount a disk device.
