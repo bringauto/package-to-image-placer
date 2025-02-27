@@ -56,7 +56,7 @@ When passing arguments through the command line, it is recommended to use the `-
 * `-overwrite` - Overwrite files in target image if it exists.
 * `-package-dir` - Initial directory for the package selection. Interactive mode only.
 * `-target-dir` - Override target directory on the image from config. Non-interactive mode only.
-* `-log-path` - Path to the log file. Default is `./package_to_image_placer.log`.
+* `-log-path` - Directory for the log file. Default is the current directory (`.`). The log file will be created at `log-path/package-to-image-placer.log`.
 * `-h` - Show usage.
 
 > Commandline arguments are overriding the config file values.
