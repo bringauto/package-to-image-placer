@@ -2,14 +2,17 @@ import subprocess
 import os
 import shutil
 import json
-from random import random, randint
 from time import sleep
 
 
 def remove_dir(dir_path: str) -> None:
     """TODO"""
-    rc = subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
-    print(f"Removing {dir_path} with rc: {rc.returncode}")
+    subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
+
+
+def mkdir(dir_path: str) -> None:
+    """TODO"""
+    subprocess.run(["sudo", "mkdir", "-p", dir_path], check=True)
 
 
 def convert_size_to_bytes(size: str) -> int:
@@ -84,8 +87,8 @@ def add_services_dirs_to_partition(partition: str) -> None:
 
     try:
         subprocess.run(["sudo", "mount", partition, mount_point], check=True)
-        subprocess.run(["sudo", "mkdir", "-p", f"{mount_point}{services_dir}"], check=True)
-        subprocess.run(["sudo", "mkdir", "-p", f"{mount_point}{multi_user_target}"], check=True)
+        mkdir(f"{mount_point}{services_dir}")
+        mkdir(f"{mount_point}{multi_user_target}")
 
     finally:
         unmount_disk(mount_point)
@@ -223,7 +226,6 @@ def unmount_disk(device_path: str) -> None:
         rc = subprocess.run(["sudo", "umount", device_path], check=False)
         while rc.returncode != 0:
             print(f"Failed to unmount {device_path}. Retrying...")
-            sleep(0.1)
             rc = subprocess.run(["sudo", "umount", device_path], check=False)
     else:
         print(f"Device {device_path} is not mounted.")
@@ -327,6 +329,37 @@ def is_package_installed(package_path: str, mount_point: str, package_dir: str) 
     return compare_directories(unzip_package_dir, mount_package_dir)
 
 
+def is_service_enabled(service_name: str, mount_point: str) -> bool:
+    """TODO"""
+    system_services_dir = "etc/systemd/system/"
+    multi_user_target_dir = "etc/systemd/system/multi-user.target.wants/"
+
+    service_name = os.path.basename(service_name)
+    service_path = os.path.join(mount_point, system_services_dir, service_name)
+
+    if not os.path.exists(service_path):
+        print(f"Service file {service_name} not found.")
+        return False
+
+    service_link_path = os.path.join(mount_point, multi_user_target_dir, service_name)
+    if not os.path.exists(service_link_path):
+        print(f"Service link {service_link_path} not found.")
+        return False
+
+    if not os.path.islink(service_link_path):
+        print(f"Service link {service_link_path} is not a symlink.")
+        return False
+
+    link_target = os.path.abspath(
+        os.path.join(mount_point, system_services_dir, os.path.basename(os.readlink(service_link_path)))
+    )
+    if link_target != service_path:
+        print(f"Service link: {service_link_path} target is: {link_target} instead of: {service_path}.")
+        return False
+
+    return True
+
+
 def inspect_image(config_path: str) -> bool:
     """TODO"""
     with open(config_path, "r") as f:
@@ -350,7 +383,7 @@ def inspect_image(config_path: str) -> bool:
     test_mount_point = os.path.abspath("test_data/inspect_mount_point")
     test_passed = True
     try:
-        subprocess.run(["mkdir", "-p", test_mount_point], check=True)
+        mkdir(test_mount_point)
         for partition in partitions:
             partition_path = f"{loop_device}p{partition}"
             subprocess.run(["sudo", "mount", partition_path, test_mount_point], check=True)
@@ -363,12 +396,10 @@ def inspect_image(config_path: str) -> bool:
                     break
 
             for service in services:
-                service_name = os.path.basename(service)
-                service_path = os.path.join(test_mount_point, "etc/systemd/system/", service_name)
-                print(f"Service: {service_path}")
-                if not os.path.exists(service_path):
+                print(f"Partition: {partition}, Service: {service}")
+                if not is_service_enabled(service, test_mount_point):
                     test_passed = False
-                    print(f"Service file {service_name} not found.")
+                    print(f"Service {service} not enabled.")
                     break
 
             unmount_disk(test_mount_point)
