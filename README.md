@@ -16,7 +16,7 @@ Then it can generate a config file for the tool to use in non-interactive mode.
 
 * golang >= 1.23
 * libguestfs
-    * See [libguest installation] section for install instructions.
+  * See [libguest installation] section for install instructions.
 * ssty
 
 ## Usage
@@ -63,11 +63,13 @@ When passing arguments through the command line, it is recommended to use the `-
 
 ### Tests
 
-To run all tests, run:
+To run all unit tests, run:
 
 ```bash
 go test ./...
 ```
+
+To run integration tests, refer to the [tests/README.md](tests/README.md) file.
 
 ## Config file
 
@@ -112,14 +114,13 @@ dpkg-deb -x linux-image-$(uname -r)*.deb ./
 export SUPERMIN_KERNEL=./boot/vmlinuz-image-$(uname -r)
 ```
 
-`install libguestfs-tools` will install the tools, but it needs read access to the kernel (e.g. `/boot/vmlinuz-*`) image. 
+`install libguestfs-tools` will install the tools, but it needs read access to the kernel (e.g. `/boot/vmlinuz-*`) image.
 You can either create a new kernel image, that `supermin` will use (as shown above), or give read access to the existing one.
 To test functionality or to find the used kernel image, run:
 
 ```bash
 libguestfs-test-tool
 ```
-
 
 ### Fedora
 

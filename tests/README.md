@@ -3,6 +3,7 @@
 ## TODO
 
 - unit tests are failing
+- add services description
 
 ## Requirements
 
