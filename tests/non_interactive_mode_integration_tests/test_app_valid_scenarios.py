@@ -280,12 +280,12 @@ def test_write_package_with_service(package_to_image_placer_binary):
     img_out = "test_data/test_img_out.img"
     package = "test_data/normal_package"
     package_zip = package + ".zip"
-    service = "test_data/service"
+    service = "test_data/service.service"
     partitions = [1]
 
-    create_test_package(package, "10KB")
-    create_image(img_in, "10MB", 1)
     create_service_file(service)
+    create_test_package(package, "10KB", services=[service])
+    create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
     create_config(config, img_in, img_out, [package_zip], partitions, service_files=[service])

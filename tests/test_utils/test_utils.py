@@ -38,7 +38,9 @@ def crete_symlink(source: str, target: str) -> None:
     os.symlink(source, target)
 
 
-def create_test_package(package_path: str, package_size: str, create_symlinks: bool = True) -> None:
+def create_test_package(
+    package_path: str, package_size: str, create_symlinks: bool = True, services: list[str] = []
+) -> None:
     """TODO"""
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
@@ -56,11 +58,31 @@ def create_test_package(package_path: str, package_size: str, create_symlinks: b
         for i in range(1, 6):
             crete_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink_{i}")
 
+    for service in services:
+        service_target_path = os.path.join(package_path, os.path.basename(service))
+        shutil.copy(service, service_target_path)
+
     subprocess.run(
         ["zip", "-ry", f"{os.path.abspath(package_path)}.zip", os.path.basename(package_path)],
         check=True,
         cwd=os.path.dirname(package_path),
     )
+
+
+def add_services_dirs_to_partition(partition: str) -> None:
+    """TODO"""
+    services_dir = "/etc/systemd/system/"
+    multi_user_target = "/etc/systemd/system/multi-user.target.wants/"
+    mount_point = "test_data/services_mount_point"
+    os.makedirs(mount_point, exist_ok=True)
+
+    try:
+        subprocess.run(["sudo", "mount", partition, mount_point], check=True)
+        subprocess.run(["sudo", "mkdir", "-p", f"{mount_point}{services_dir}"], check=True)
+        subprocess.run(["sudo", "mkdir", "-p", f"{mount_point}{multi_user_target}"], check=True)
+
+    finally:
+        unmount_disk(mount_point)
 
 
 def create_image(image_path: str, image_size: str, partitions_count: int) -> str:
@@ -106,7 +128,9 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
 
     # Format each partition with ext4
     for i in range(1, partitions_count + 1):
-        subprocess.run(["sudo", "mkfs.ext4", "-F", f"{loop_device}p{i}"], check=True)
+        partition_name = f"{loop_device}p{i}"
+        subprocess.run(["sudo", "mkfs.ext4", "-F", partition_name], check=True)
+        add_services_dirs_to_partition(partition_name)
 
     # Detach loop device
     subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
@@ -153,18 +177,23 @@ def create_config(
 
 def create_service_file(service_file_path: str) -> None:
     """TODO"""
-    service_content = """[Unit]
+    service_content = """
+[Unit]
 Description=My Custom Testing Service
 After=network.target
 
 [Service]
-ExecStart=echo "Hello, World!"
-Restart=always
+ExecStart=test_file "
+Type=simple
 User=root
 WorkingDirectory=/
+Restart=always
+RestartSec=1
 
 [Install]
-WantedBy=multi-user.target"""
+WantedBy=multi-user.target
+
+"""
 
     if os.path.exists(service_file_path):
         print(f"Service file {service_file_path} already exists. Removing...")
