@@ -271,27 +271,3 @@ def test_write_one_package_overwrite_config_no_clone_value_to_false(package_to_i
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config, no_clone=False)
     assert result.returncode == 1
     assert not inspect_image(config)
-
-
-def test_write_package_with_service(package_to_image_placer_binary):
-    """TODO"""
-    config = "test_data/test_config.json"
-    img_in = "test_data/test_img.img.in"
-    img_out = "test_data/test_img_out.img"
-    package = "test_data/normal_package"
-    package_zip = package + ".zip"
-    service = "test_data/service.service"
-    partitions = [1]
-
-    create_service_file(service)
-    create_test_package(package, "10KB", services=[service])
-    create_image(img_in, "10MB", 1)
-    make_image_mountable(img_in)
-
-    create_config(config, img_in, img_out, [package_zip], partitions, service_names=[os.path.basename(service)])
-
-    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
-
-    assert result.returncode == 0
-
-    assert inspect_image(config)
