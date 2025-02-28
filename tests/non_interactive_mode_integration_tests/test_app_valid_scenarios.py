@@ -288,7 +288,7 @@ def test_write_package_with_service(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [package_zip], partitions, service_files=[service])
+    create_config(config, img_in, img_out, [package_zip], partitions, service_names=[os.path.basename(service)])
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 

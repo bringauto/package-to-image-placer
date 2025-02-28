@@ -6,6 +6,12 @@ from random import random, randint
 from time import sleep
 
 
+def remove_dir(dir_path: str) -> None:
+    """TODO"""
+    rc = subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
+    print(f"Removing {dir_path} with rc: {rc.returncode}")
+
+
 def convert_size_to_bytes(size: str) -> int:
     """
     Convert a size string to bytes.
@@ -144,11 +150,11 @@ def create_config(
     target: str = "",
     packages: list[str] = [],
     partition_numbers: list[int] = [],
-    service_files: list[str] = [],
-    target_directory: str = None,
+    service_names: list[str] = [],
+    target_directory: str = "/",
     no_clone: bool = False,
     overwrite: bool = False,
-    log_path: str = ".",
+    log_path: str = "",
     remove_from_config: list[str] = [],
 ) -> None:
     """TODO"""
@@ -157,7 +163,7 @@ def create_config(
         "target": target,
         "packages": packages,
         "partition-numbers": partition_numbers,
-        "service-files": service_files,
+        "service-names": service_names,
         "target-directory": target_directory,
         "no-clone": no_clone,
         "overwrite": overwrite,
@@ -244,25 +250,81 @@ def make_image_mountable(image_path: str) -> str:
     return loop_device.stdout.strip()
 
 
+def compare_directories(dir1: str, dir2: str) -> bool:
+    """
+    Compare two directories recursively.
+
+    Args:
+        dir1 (str): The path to the first directory.
+        dir2 (str): The path to the second directory.
+
+    Returns:
+        bool: True if the directories are the same, False otherwise.
+    """
+    files1 = []
+    files2 = []
+    dirs1 = []
+    dirs2 = []
+
+    if not os.path.exists(dir1) or not os.path.exists(dir2):
+        print(f"One of the directories does not exist: {dir1}, {dir2}")
+        return False
+
+    if not os.path.isdir(dir1) or not os.path.isdir(dir2):
+        print(f"One of the paths is not a directory: {dir1}, {dir2}")
+        return False
+
+    with os.scandir(dir1) as entries:
+        for entry in entries:
+            if entry.is_file():
+                files1.append(entry.name)
+            elif entry.is_dir():
+                dirs1.append(entry.name)
+
+    with os.scandir(dir2) as entries:
+        for entry in entries:
+            if entry.is_file():
+                files2.append(entry.name)
+            elif entry.is_dir():
+                dirs2.append(entry.name)
+
+    files1 = [f for f in files1 if not f.endswith(".service")]
+    files2 = [f for f in files2 if not f.endswith(".service")]
+    files1.sort()
+    files2.sort()
+
+    for f1, f2 in zip(files1, files2):
+        rc = subprocess.run(["diff", "-q", os.path.join(dir1, f1), os.path.join(dir2, f2)], check=True)
+        if rc.returncode != 0:
+            return False
+
+    dirs1.sort()
+    dirs2.sort()
+    for d1, d2 in zip(dirs1, dirs2):
+        if not compare_directories(os.path.join(dir1, d1), os.path.join(dir2, d2)):
+            return False
+
+    return True
+
+
 def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
     """TODO"""
+    print(f"Checking package {package_path} installation...")
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
     if os.path.exists(unzip_package_dir):
-        subprocess.run(["sudo", "rm", "-rf", unzip_package_dir], check=True)
+        remove_dir(unzip_package_dir)
     os.makedirs(unzip_package_dir, exist_ok=True)
 
     subprocess.run(["sudo", "unzip", "-o", package_path, "-d", unzip_package_dir], check=True)
 
+    if package_dir.startswith("/"):
+        package_dir = package_dir[1:]
     packet_name = os.path.basename(package_path).split(".")[0]
     mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
 
-    diff_result = subprocess.run(["diff", "-r", unzip_package_dir, mount_package_dir], capture_output=True, text=True)
+    print("Diffing: ", unzip_package_dir, mount_package_dir)
 
-    if diff_result.returncode != 0:
-        return False
-    print("Diff: ", diff_result.returncode, diff_result.stdout, diff_result.stderr)
-
-    return diff_result.returncode == 0
+    return compare_directories(unzip_package_dir, mount_package_dir)
 
 
 def inspect_image(config_path: str) -> bool:
@@ -274,6 +336,7 @@ def inspect_image(config_path: str) -> bool:
     partitions = config.get("partition-numbers")
     target_directory = config.get("target-directory")
     packages = config.get("packages")
+    services = config.get("service-names")
 
     if not target_directory:
         target_directory = "."
@@ -296,12 +359,22 @@ def inspect_image(config_path: str) -> bool:
                 print(f"Partition: {partition}, Package: {package}")
                 if not is_package_installed(package, test_mount_point, target_directory):
                     test_passed = False
+                    print(f"Package {package} not installed.")
                     break
+
+            for service in services:
+                service_name = os.path.basename(service)
+                service_path = os.path.join(test_mount_point, "etc/systemd/system/", service_name)
+                print(f"Service: {service_path}")
+                if not os.path.exists(service_path):
+                    test_passed = False
+                    print(f"Service file {service_name} not found.")
+                    break
+
             unmount_disk(test_mount_point)
 
     finally:
-        unmount_disk(test_mount_point)
-        subprocess.run(["sudo", "rmdir", test_mount_point], check=True)
+        remove_dir(test_mount_point)
         subprocess.run(["sudo", "losetup", "-d", loop_device], check=True)
 
     return test_passed

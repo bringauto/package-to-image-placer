@@ -1,6 +1,7 @@
 import pytest
 import subprocess
 import os
+import test_utils.test_utils as test_utils
 
 
 @pytest.fixture(scope="session")
@@ -20,7 +21,7 @@ def clean_up_between_tests():
     test_data_dir = "test_data"
     # remove any previous test data
     if os.path.exists(test_data_dir):
-        subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
+        test_utils.remove_dir(test_data_dir)
 
     os.makedirs(test_data_dir, exist_ok=True)
 
