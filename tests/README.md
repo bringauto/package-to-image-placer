@@ -3,7 +3,7 @@
 ## TODO
 
 - unit tests are failing
-- add services description
+- add services requirements description
 
 ## Requirements
 
@@ -19,7 +19,8 @@ pip install -r requirements.txt
 **⚠️ WARNING**  
 To ensure the tests run correctly, please take note of the following requirements:  
 
-1. **Root Privileges:** The application runs with root privileges during testing. Therefore, you must provide the **root password** when prompted.
+1. **Root Privileges:** The application requires root privileges during testing. Ensure you have the **root password** available when prompted.
+2. **Non-standard Test Behavior:** If tests are interrupted or exhibit non-standard behavior, you may need to manually unmount any devices used during the tests. In some cases, a system restart might be necessary to restore normal operation.
 
 ---
 
