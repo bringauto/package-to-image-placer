@@ -51,6 +51,8 @@ func createDefaultConfig() configuration.Configuration {
 
 // If this test doesn't pass, all other (failing tests) are without any significance
 func TestMountPartitionAndCopyPackage_Success(t *testing.T) {
+	cleanup()
+	setup()
 	config := createDefaultConfig()
 
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)
@@ -91,6 +93,8 @@ func TestMountPartitionAndCopyPackage_InvalidPackagePath(t *testing.T) {
 }
 
 func TestMountPartitionAndCopyPackage_NotAllServicesActivated(t *testing.T) {
+	cleanup()
+	setup()
 	config := createDefaultConfig()
 	config.ServiceNames = []string{"unavailable.service"}
 
@@ -117,6 +121,8 @@ func TestMountPartitionAndCopyPackage_FailExistNoOverwrite(t *testing.T) {
 }
 
 func TestMountPartitionAndCopyPackage_SuccessOverwrite(t *testing.T) {
+	cleanup()
+	setup()
 	config := createDefaultConfig()
 	config.Overwrite = true
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)
@@ -130,7 +136,7 @@ func TestMountPartitionAndCopyPackage_SuccessOverwrite(t *testing.T) {
 	}
 }
 
-func TestMountPartitionAndCopyPackage_InvalidTargetDirectory(t *testing.T) {
+func TestMountPartitionAndCopyPackage_TargetDirectoryOutOfMount(t *testing.T) {
 	config := createDefaultConfig()
 	config.TargetDirectory = "../../"
 
