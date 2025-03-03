@@ -83,6 +83,8 @@ func main() {
 			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
 			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
 				log.Fatalf("file already exists and user chose not to delete it")
+			} else if !config.InteractiveRun && !config.Overwrite {
+				log.Fatalf("file already exists and overwrite flag is not set")
 			}
 			if err := os.Remove(config.Target); err != nil {
 				log.Fatalf("unable to delete existing file: %s", err)
