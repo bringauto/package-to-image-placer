@@ -5,7 +5,6 @@ from test_utils.test_utils import (
     create_image,
     make_image_mountable,
     create_config,
-    inspect_image,
 )
 
 
