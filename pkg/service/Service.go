@@ -90,7 +90,7 @@ func writeOptsToFile(serviceFile string, opts map[string]unit.UnitOption) error 
 	return nil
 }
 
-var requiredFields = []string{"ExecStart", "Type", "User", "RestartSec", "WorkingDirectory"}
+var requiredFields = []string{"ExecStart", "Type", "User", "RestartSec", "WorkingDirectory", "WantedBy"}
 
 // checkAndParseServiceFileContent checks presence and value of required fields and parses the content.
 func checkServiceFileContent(optsMap map[string]unit.UnitOption) error {

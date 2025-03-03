@@ -53,7 +53,7 @@ For non-interactive mode, run:
 * `-target-dir` - Override target directory on the image from config. Non-interactive mode only.
 * `-h` - Show usage.
 
-> Commandline arguments are overriding the config file values.
+> Command line arguments are overriding the config file values.
 
 ### Tests
 
@@ -90,6 +90,24 @@ Config structure is as follows:
 }
 ```
 
+## Services
+
+The tool can activate service files in the image. 
+The service files are activated by copying them to `/etc/system/systemd/` and creating symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
+
+The paths in the image are updated based on `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
+
+### Requirements
+
+The service file must:
+* be in the package.
+* contain the following fields:
+  * `ExecStart`
+  * `User`
+  * `RestartSec`
+  * `WorkingDirectory`
+  * `Type=simple`
+  * `WantedBy=multi-user.target`
 
 ## Libguest installation
 
