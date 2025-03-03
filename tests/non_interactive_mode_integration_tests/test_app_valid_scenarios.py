@@ -273,7 +273,7 @@ def test_write_one_package_overwrite_config_no_clone_value_to_false(package_to_i
 
 
 def test_double_write_without_override(package_to_image_placer_binary):
-    """Tests if the package_to_image_placer will not write a package to an image when the target image already exists and the overwrite flag is not set"""
+    """Tests if the package_to_image_placer will fail when tha package is already written to the image and the overwrite flag is not set"""
     config_1 = "test_data/test_config_1.json"
     config_2 = "test_data/test_config_2.json"
     img_in = "test_data/test_img.img.in"
@@ -288,27 +288,45 @@ def test_double_write_without_override(package_to_image_placer_binary):
     make_image_mountable(img_in)
 
     create_config(config_1, img_in, img_out_1, [package_zip], partitions)
-    create_config(config_2, img_out_1, img_out_2, [package_zip], partitions, overwrite=False)
+    create_config(config_2, img_out_1, img_out_2, [package_zip], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config_1)
 
     assert result.returncode == 0
     assert inspect_image(config_1)
 
-    # crete file that should not be overwritten
-    test_text = "Lorem ipsum"
+    # crete file that should be overwritten
     with open(img_out_2, "wb") as f:
-        f.write(test_text.encode())
+        f.write(b"Test data")
     assert os.path.exists(img_out_2)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config_2)
 
     assert result.returncode == 1
-
-    # check if the file was not overwritten
-    assert os.path.exists(img_out_2)
-    with open(img_out_2, "rb") as f:
-        assert f.read().decode() == test_text
+    # Check if the image was overwritten and removed
+    assert not os.path.exists(img_out_2)
 
     # check if the source image was not damaged during second run
     assert inspect_image(config_1)
+
+
+def test_write_to_custom_target_directory(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will write a package to an image in a custom target directory"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    target_directory = "custom_target_directory"
+    create_config(config, img_in, img_out, [package_zip], partitions, target_directory=target_directory)
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 0
+    assert inspect_image(config)
