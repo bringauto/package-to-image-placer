@@ -40,11 +40,11 @@ func createDefaultConfig() configuration.Configuration {
 	return configuration.Configuration{
 		Target:           testImage,
 		NoClone:          false,
-		Packages:         []string{},
+		Packages:         []string{exampleArchive},
 		PartitionNumbers: []int{1},
 		TargetDirectory:  "target/dir",
 		ServiceNames:     []string{},
-		Overwrite:        true,
+		Overwrite:        false,
 		InteractiveRun:   false,
 	}
 }
@@ -62,6 +62,7 @@ func TestMountPartitionAndCopyPackage_Success(t *testing.T) {
 func TestMountPartitionAndCopyPackage_ArchiveSizeTooBig(t *testing.T) {
 	packagePath := "../../testdata/archives/tooBig.zip"
 	config := createDefaultConfig()
+	config.Packages = []string{packagePath}
 
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
@@ -81,6 +82,7 @@ func TestMountPartitionAndCopyPackage_InvalidPartition(t *testing.T) {
 func TestMountPartitionAndCopyPackage_InvalidPackagePath(t *testing.T) {
 	packagePath := "doesNotExist.zip"
 	config := createDefaultConfig()
+	config.Packages = []string{packagePath}
 
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
@@ -99,12 +101,32 @@ func TestMountPartitionAndCopyPackage_NotAllServicesActivated(t *testing.T) {
 }
 
 func TestMountPartitionAndCopyPackage_FailExistNoOverwrite(t *testing.T) {
+	cleanup()
+	setup()
 	config := createDefaultConfig()
 	config.Overwrite = false
-
 	err := MountPartitionAndCopyPackages(partitionNumber, &config)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	err = MountPartitionAndCopyPackages(partitionNumber, &config)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
+	}
+}
+
+func TestMountPartitionAndCopyPackage_SuccessOverwrite(t *testing.T) {
+	config := createDefaultConfig()
+	config.Overwrite = true
+	err := MountPartitionAndCopyPackages(partitionNumber, &config)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	err = MountPartitionAndCopyPackages(partitionNumber, &config)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }
 
@@ -118,5 +140,4 @@ func TestMountPartitionAndCopyPackage_InvalidTargetDirectory(t *testing.T) {
 	} else if err.Error() != "target directory is not within the mounted partition" {
 		t.Fatalf("expected error message 'target directory is not within the mounted partition', got %v", err)
 	}
-
 }
