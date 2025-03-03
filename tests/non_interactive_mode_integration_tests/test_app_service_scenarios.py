@@ -12,7 +12,7 @@ from test_utils.test_utils import (
 
 
 def test_write_package_with_service(package_to_image_placer_binary):
-    """TODO"""
+    """Test if the package_to_image_placer will write a package with a service to an image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out = "test_data/test_img_out.img"
@@ -36,7 +36,7 @@ def test_write_package_with_service(package_to_image_placer_binary):
 
 
 def test_write_package_with_services(package_to_image_placer_binary):
-    """TODO"""
+    """Test if the package_to_image_placer will write a package with two services to an image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out = "test_data/test_img_out.img"
@@ -68,7 +68,7 @@ def test_write_package_with_services(package_to_image_placer_binary):
 
 
 def test_write_packages_with_services_with_override(package_to_image_placer_binary):
-    """TODO"""
+    """Test if the package_to_image_placer will write two packages with two services to an image when override is set to True"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out = "test_data/test_img_out.img"
@@ -104,7 +104,7 @@ def test_write_packages_with_services_with_override(package_to_image_placer_bina
 
 
 def test_write_packages_with_services_without_override(package_to_image_placer_binary):
-    """TODO"""
+    """Test if the package_to_image_placer will fail when attempting to write two packages with the same service to an image without override enabled"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out = "test_data/test_img_out.img"
@@ -133,3 +133,44 @@ def test_write_packages_with_services_without_override(package_to_image_placer_b
 
     assert result.returncode == 1
     assert not os.path.exists(img_out)
+
+
+def test_write_multiple_packages_with_services(package_to_image_placer_binary):
+    """Write multiple packages with services to an image"""
+    config = "test_data/test_config.json"
+    img_in_out = "test_data/test_img.img.in"
+    package_count = 5
+    packages = [f"test_data/normal_package{i}" for i in range(package_count)]
+    services = [f"test_data/service{i}.service" for i in range(package_count)]
+    target_directory = "a/b/c"
+    partitions = [1, 2, 3]
+
+    create_image(img_in_out, "30MB", 3)
+    make_image_mountable(img_in_out)
+
+    for service, package in zip(services, packages):
+        print(package)
+        create_service_file(service)
+        create_test_package(package, "10KB", services=[service])
+        create_config(
+            config,
+            target=img_in_out,
+            packages=[package + ".zip"],
+            partition_numbers=partitions,
+            service_names=[os.path.basename(service)],
+            no_clone=True,
+            target_directory=target_directory,
+        )
+        result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+        assert result.returncode == 0
+        assert inspect_image(config)
+
+    create_config(
+        config,
+        target=img_in_out,
+        packages=[package + ".zip" for package in packages],
+        partition_numbers=partitions,
+        service_names=[os.path.basename(service) for service in services],
+        target_directory=target_directory,
+    )
+    assert inspect_image(config)
