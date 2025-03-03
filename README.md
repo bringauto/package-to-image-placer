@@ -42,7 +42,7 @@ For non-interactive mode, run:
 ./package-to-image-placer -config=<config_file_path> [ <overrides> ]
 ```
 
-In non-interactive mode, if the target image already exists, it will be modified. If the operation fails, the target image will be removed to prevent an inconsistent state.
+⚠️ In non-interactive mode, if the target image already exists, it will be modified. If the operation fails, the target image will be removed to prevent an inconsistent state.
 
 When passing arguments through the command line, it is recommended to use the `-name=value` format when the equal sign is used.
 
