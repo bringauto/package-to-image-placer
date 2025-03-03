@@ -1,4 +1,3 @@
-import subprocess
 import os
 from time import sleep
 from test_utils.test_utils import (
