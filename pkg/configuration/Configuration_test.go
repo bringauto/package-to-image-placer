@@ -47,7 +47,7 @@ func TestValidateConfiguration_Success(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
-		LogPath:          ".",
+		LogPath:          "./",
 	}
 
 	err := ValidateConfiguration(config)
@@ -68,7 +68,7 @@ func TestValidateConfiguration_PackageNotExist(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
-		LogPath:          ".",
+		LogPath:          "./",
 	}
 
 	err := ValidateConfiguration(config)
@@ -88,7 +88,7 @@ func TestValidateConfiguration_MissingTarget(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
-		LogPath:          ".",
+		LogPath:          "./",
 	}
 
 	err := ValidateConfiguration(config)
@@ -109,7 +109,7 @@ func TestValidateConfiguration_SameSourceAndTarget(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
-		LogPath:          ".",
+		LogPath:          "./",
 	}
 
 	err := ValidateConfiguration(config)
@@ -129,7 +129,7 @@ func TestValidateConfiguration_NoSourceAndNoClone(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
-		LogPath:          ".",
+		LogPath:          "./",
 	}
 
 	err := ValidateConfiguration(config)
@@ -149,7 +149,28 @@ func TestValidateConfiguration_NoCloneTargetDoesNotExist(t *testing.T) {
 		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
-		LogPath:          ".",
+		LogPath:          "./",
+	}
+
+	err := ValidateConfiguration(config)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+}
+
+func TestValidateConfiguration_InvalidLogPath(t *testing.T) {
+	config := Configuration{
+		Source:           sourceImg,
+		Target:           "target.img",
+		NoClone:          false,
+		Packages:         []string{package1, package2},
+		PartitionNumbers: []int{1, 2},
+		TargetDirectory:  "target/dir",
+		ServiceNames:     []string{"service1", "service2"},
+		Overwrite:        true,
+		InteractiveRun:   false,
+		PackageDir:       "package/dir",
+		LogPath:          "/invalid/log/path",
 	}
 
 	err := ValidateConfiguration(config)

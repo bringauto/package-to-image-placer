@@ -59,7 +59,7 @@ When passing arguments through the command line, it is recommended to use the `-
 * `-log-path` - Directory for the log file. Default is the current directory (`.`). The log file will be created at `log-path/package-to-image-placer.log`.
 * `-h` - Show usage.
 
-> Commandline arguments are overriding the config file values.
+> Command line arguments are overriding the config file values.
 
 ### Tests
 
@@ -98,6 +98,25 @@ Config structure is as follows:
   "overwrite": <bool>
 }
 ```
+
+## Services
+
+The tool can activate service files in the image. 
+The service files are activated by copying them to `/etc/system/systemd/` and creating symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
+
+The paths in the image are updated based on `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
+
+### Requirements
+
+The service file must:
+* be in the package.
+* contain the following fields:
+  * `ExecStart`
+  * `User`
+  * `RestartSec`
+  * `WorkingDirectory`
+  * `Type=simple`
+  * `WantedBy=multi-user.target`
 
 ## Libguest installation
 
