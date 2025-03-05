@@ -1,3 +1,4 @@
+
 # Package To Image Placer
 
 This tool is used to place a package into a system image without the need to use `sudo`.
@@ -101,14 +102,15 @@ Config structure is as follows:
 
 ## Services
 
-The tool can activate service files in the image. 
+The tool can activate service files in the image.
 The service files are activated by copying them to `/etc/system/systemd/` and creating symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
 
 The paths in the image are updated based on `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
 
-### Requirements
+### Service requirements
 
 The service file must:
+
 * be in the package.
 * contain the following fields:
   * `ExecStart`
