@@ -6,12 +6,24 @@ from time import sleep
 
 
 def remove_dir(dir_path: str) -> None:
-    """TODO"""
+    """
+    Remove a directory and its contents.
+
+    Args:
+        dir_path (str): The path to the directory to remove.
+    """
+    if not os.path.exists(dir_path):
+        return
     subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
 
 
 def mkdir(dir_path: str) -> None:
-    """TODO"""
+    """
+    Create a directory.
+
+    Args:
+        dir_path (str): The path to the directory to create.
+    """
     subprocess.run(["sudo", "mkdir", "-p", dir_path], check=True)
 
 
@@ -40,7 +52,13 @@ def convert_size_to_bytes(size: str) -> int:
 
 
 def crete_symlink(source: str, target: str) -> None:
-    """TODO"""
+    """
+    Create a symbolic link.
+
+    Args:
+        source (str): The path to the source file or directory.
+        target (str): The path to the target symbolic link.
+    """
     source = os.path.abspath(source)
     if os.path.exists(target):
         os.remove(target)
@@ -50,7 +68,15 @@ def crete_symlink(source: str, target: str) -> None:
 def create_test_package(
     package_path: str, package_size: str, create_symlinks: bool = True, services: list[str] = []
 ) -> None:
-    """TODO"""
+    """
+    Create a test package with the specified size and contents.
+
+    Args:
+        package_path (str): The path to the package zip file to create.
+        package_size (str): The size of the package (e.g., '5MB').
+        create_symlinks (bool): Whether to create symbolic links in the package directory.
+        services (list[str]): A list of service files to include in the package.
+    """
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
         shutil.rmtree(package_path)
@@ -79,7 +105,12 @@ def create_test_package(
 
 
 def add_services_dirs_to_partition(partition: str) -> None:
-    """TODO"""
+    """
+    Add the required directories for services to a partition.
+
+    Args:
+        partition (str): The path to the partition to add the directories to.
+    """
     services_dir = "/etc/systemd/system/"
     multi_user_target = "/etc/systemd/system/multi-user.target.wants/"
     mount_point = "test_data/services_mount_point"
@@ -160,7 +191,22 @@ def create_config(
     log_path: str = "",
     remove_from_config: list[str] = [],
 ) -> None:
-    """TODO"""
+    """
+    Create a configuration file for the package-to-image-placer.
+
+    Args:
+        config_path (str): The path to the configuration file to create.
+        source (str): The path to the source image.
+        target (str): The path to the target image.
+        packages (list[str]): A list of package zip files to install.
+        partition_numbers (list[int]): A list of partition numbers to install the packages to.
+        service_names (list[str]): A list of service files to enable.
+        target_directory (str): The target directory to install the packages to.
+        no_clone (bool): Whether to clone the source image.
+        overwrite (bool): Whether to overwrite the target image if it already exists.
+        log_path (str): The path to the log file.
+        remove_from_config (list[str]): A list of keys to remove from the configuration.
+    """
     data = {
         "source": source,
         "target": target,
@@ -185,17 +231,22 @@ def create_config(
 
 
 def create_service_file(service_file_path: str) -> None:
-    """TODO"""
+    """
+    Create a service file for testing.
+
+    Args:
+        service_file_path (str): The path to the service file to create.
+    """
     service_content = """
 [Unit]
 Description=My Custom Testing Service
 After=network.target
 
 [Service]
-ExecStart=test_file "
+ExecStart=test_file
 Type=simple
 User=root
-WorkingDirectory=/
+WorkingDirectory=.
 Restart=always
 RestartSec=1
 
@@ -310,7 +361,18 @@ def compare_directories(dir1: str, dir2: str) -> bool:
 
 
 def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
-    """TODO"""
+    """
+    Check if a package is copied to the target directory.
+
+    Args:
+        package_path (str): The path to the package zip file.
+        mount_point (str): The path to the mount point.
+        package_dir (str): The target directory where the package should be installed.
+
+    Returns:
+        bool: True if the package is installed, False otherwise.
+    """
+
     print(f"Checking package {package_path} installation...")
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
     if os.path.exists(unzip_package_dir):
@@ -330,7 +392,16 @@ def is_package_installed(package_path: str, mount_point: str, package_dir: str) 
 
 
 def is_service_enabled(service_name: str, mount_point: str) -> bool:
-    """TODO"""
+    """
+    Check if a service is enabled in the target image.
+
+    Args:
+        service_name (str): The name of the service file.
+        mount_point (str): The path to the mount point.
+
+        Returns:
+        bool: True if the service is enabled, False otherwise.
+    """
     system_services_dir = "etc/systemd/system/"
     multi_user_target_dir = "etc/systemd/system/multi-user.target.wants/"
 
@@ -357,11 +428,42 @@ def is_service_enabled(service_name: str, mount_point: str) -> bool:
         print(f"Service link: {service_link_path} target is: {link_target} instead of: {service_path}.")
         return False
 
+    with open(service_path, "r") as f:
+        required_fields = ["ExecStart=", "WorkingDirectory="]
+
+        for line in f:
+            if line.startswith("ExecStart="):
+                required_fields.remove("ExecStart=")
+                exec_start = line.split("=")[1].strip().strip("/")
+                if not os.path.exists(os.path.join(mount_point, exec_start)):
+                    print(f"Service {service_name} executable not found: {exec_start}")
+                    return False
+
+            elif line.startswith("WorkingDirectory="):
+                required_fields.remove("WorkingDirectory=")
+                working_dir = line.split("=")[1].strip().strip("/")
+                if not os.path.exists(os.path.join(mount_point, working_dir)):
+                    print(f"Service {service_name} working directory not found: {working_dir}")
+                    return False
+
+        if len(required_fields) > 0:
+            print(f"Service {service_name} is missing required fields: {required_fields}")
+            return False
+
     return True
 
 
 def inspect_image(config_path: str) -> bool:
-    """TODO"""
+    """
+    Inspect the target image to verify that the packages and services are installed correctly.
+
+    Args:
+        config_path (str): The path to the configuration file.
+
+    Returns:
+        bool: True if the image passes the inspection, False otherwise.
+    """
+
     with open(config_path, "r") as f:
         config = json.load(f)
 
@@ -424,7 +526,26 @@ def run_package_to_image_placer(
     send_to_stdin: str = None,
     result_list: list = None,
 ) -> subprocess.CompletedProcess:
-    """TODO"""
+    """
+    Run the package-to-image-placer application with the specified parameters.
+
+    Args:
+        package_to_image_placer_binary (str): The path to the package-to-image-placer binary.
+        source (str): The path to the source image.
+        target (str): The path to the target image.
+        config (str): The path to the configuration file.
+        no_clone (bool): Whether to clone the source image.
+        overwrite (bool): Whether to overwrite the target image if it already exists.
+        package_dir (str): The target directory to install the packages to.
+        target_dir (str): The target directory to install the packages to.
+        log_path (str): The path to the log file.
+        send_to_stdin (str): The input to send to the process.
+        result_list (list): A list to append the result to.
+
+    Returns:
+        subprocess.CompletedProcess: The result of the process.
+    """
+
     parameters = [package_to_image_placer_binary]
 
     if source is not None:
