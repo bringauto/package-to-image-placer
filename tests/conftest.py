@@ -37,23 +37,23 @@ def setup_environment():
     """Set up the environment before any tests are run."""
     print("Checking if all system utilities are installed...")
     try:
-        pass
-        # subprocess.run(["go", "version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["dd", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["mkfs", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["mkfs.vfat", "--help"], check=True, capture_output=True, text=True)
-        # subprocess.run(["fdisk", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["losetup", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["mount", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["umount", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["sync", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["fallocate", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["mkdir", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["rm", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["cat", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["blockdev", "--version"], check=True, capture_output=True, text=True)
-        # subprocess.run(["rmdir", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["go", "version"], check=True, capture_output=True, text=True)
+        subprocess.run(["touch", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["rm", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["mkfs", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["mkdir", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["zip", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["unzip", "-v"], check=True, capture_output=True, text=True)
+        subprocess.run(["mount", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["umount", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["sync", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["fallocate", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["parted", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["losetup", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["mkfs.vfat", "--help"], check=True, capture_output=True, text=True)
+        subprocess.run(["mkfs.ext4", "-V"], check=True, capture_output=True, text=True)
+        subprocess.run(["diff", "--version"], check=True, capture_output=True, text=True)
+        subprocess.run(["libguestfs-test-tool"], check=True, capture_output=True, text=True)
+        yield
     except FileNotFoundError:
-        pytest.exit("Please make sure all required system utilities are installed.")
-
-    yield
+        pytest.fail("Please make sure all required system utilities are installed.")
