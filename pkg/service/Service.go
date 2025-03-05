@@ -147,7 +147,8 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	execOpt := optsMap["ExecStart"]
 	execStart := execOpt.Value
 
-	originalExecutable := strings.Trim(helper.SplitStringPreserveSubstrings(execStart)[0], "'\"")
+	execStartStrings := helper.SplitStringPreserveSubstrings(execStart)
+	originalExecutable := strings.Trim(execStartStrings[0], "'\"")
 	executableWithoutWorkDir := strings.TrimPrefix(originalExecutable, workingDir)
 
 	newWorkDirWithMountDir, err := findExecutableInPath(filepath.Dir(serviceFile), executableWithoutWorkDir, packageDir)
@@ -161,8 +162,11 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	}
 
 	newExecutablePath := filepath.Join(newWorkDir, executableWithoutWorkDir)
-	newExecStartCommand := strings.ReplaceAll(execStart, originalExecutable, newExecutablePath)
-	newExecStartCommand = strings.ReplaceAll(newExecStartCommand, workingDir, newWorkDir)
+	newExecStartCommand := strings.Replace(execStart, originalExecutable, newExecutablePath, 1)
+	for i := 1; i < len(execStartStrings); i++ {
+		replaced := strings.Replace(execStartStrings[i], workingDir, newWorkDir, 1)
+		newExecStartCommand = strings.Join([]string{newExecStartCommand, replaced}, " ")
+	}
 
 	log.Printf("Updated ExecStart path from: %s to: %s", execStart, newExecutablePath)
 
