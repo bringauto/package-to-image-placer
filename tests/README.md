@@ -10,6 +10,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Before running the tests, ensure that the application can be built successfully. Follow the build instructions provided in the main documentation.
+
 ---
 **⚠️ WARNING**  
 To ensure the tests run correctly, please take note of the following requirements:  
