@@ -29,12 +29,18 @@ def clean_up_between_tests():
 
     subprocess.run(["sudo", "losetup", "-D"], check=True)
     # Clean up
-    # subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
+    subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_environment():
     """Set up the environment before any tests are run."""
+    try:
+        subprocess.run(["go", "build", "-o", "../package-to-image-placer", "../ImageToPackagePlacer.go"], check=True)
+
+    except FileNotFoundError:
+        pytest.fail("Please make sure the app is built before running the tests.")
+
     print("Checking if all system utilities are installed...")
     try:
         subprocess.run(["go", "version"], check=True, capture_output=True, text=True)
@@ -54,6 +60,8 @@ def setup_environment():
         subprocess.run(["mkfs.ext4", "-V"], check=True, capture_output=True, text=True)
         subprocess.run(["diff", "--version"], check=True, capture_output=True, text=True)
         subprocess.run(["libguestfs-test-tool"], check=True, capture_output=True, text=True)
-        yield
+
     except FileNotFoundError:
         pytest.fail("Please make sure all required system utilities are installed.")
+
+    yield
