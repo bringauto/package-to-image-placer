@@ -1,0 +1,10 @@
+{
+  "source": "",
+  "target": "",
+  "no-clone": false,
+  "packages": [ ],
+  "partition-numbers": [ ],
+  "target-directory": "",
+  "service-names": [ ],
+  "overwrite": false
+}

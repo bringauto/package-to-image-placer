@@ -1,93 +1,154 @@
 # Package To Image Placer
 
+This tool is used to place a package into a system image without the need to use `sudo`.
+It is used to create a disk image with a package installed.
+This way the target system can be used with new packages without the need to generate a whole image and know yocto.
 
+It takes a package (archive) and a system image (disk image) as input and creates a new disk image with the package.
+If the package contains any service files, they can be activated.
 
-## Getting started
+For working with the image, the tool uses `libguestfs` to mount the image's filesystems. This way, the tool can work with the image without root permissions.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+The tool supports interactive mode, which allows the user to select the package, target partition, and the service files to activate.
+Then it can generate a config file for the tool to use in non-interactive mode.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Requirements
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.bringauto.com/bring-auto/fleet-os/package-to-image-placer.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.bringauto.com/bring-auto/fleet-os/package-to-image-placer/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+* golang >= 1.23
+* libguestfs
+    * See [libguest installation] section for install instructions.
+* ssty
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Build
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```bash
+go get package-to-image-placer
+go build
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## Run
+For interactive mode, run:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```bash
+./package-to-image-placer -source <source_image_path> -target <target_image_path> [ -package-dir <package_dir> ... ]
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+For non-interactive mode, run:
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+./package-to-image-placer -config <config_file_path> [ <overrides> ]
+```
 
-## License
-For open source projects, say how it is licensed.
+### Arguments
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+* `-source` - Path to the source image.
+* `-target` - Path to the target image. The path will be created. 
+  * If used with no-clone option this file must exist and will be changed.
+* `-config` - Path to the config file. Sets Non-interactive mode.
+* `-no-clone` - Do not clone the source image. The target image must exist.
+* `-overwrite` - Overwrite the target image if it exists.
+* `-package-dir` - Initial directory for the package selection. Interactive mode only.
+* `-target-dir` - Override target directory on the image from config. Non-interactive mode only.
+* `-h` - Show usage.
+
+> Command line arguments are overriding the config file values.
+
+### Tests
+
+To run all tests, run:
+
+```bash
+go test ./...
+```
+
+## Config file
+
+The config can be generated in interactive run. The config file is used to set the package, target partition, and service files to activate.
+
+Default config file is in [default-config.json](./resources/default-config.json).
+
+Config structure is as follows:
+
+```json lines
+{
+  "source": "<source-image-path>",
+  "target": "<target-image-path>",
+  "packages": [
+    "<package-path.zip>"
+  ],
+  "partition-numbers": [ 
+    <partition-number>
+  ],
+  "service_files": [
+    "<service-file-name-with-suffix>"
+  ],
+  "target-directory": "<target-directory-on-image>",
+  "no-clone": <bool>,
+  "overwrite": <bool>
+}
+```
+
+## Services
+
+The tool can activate service files in the image. 
+The service files are activated by copying them to `/etc/system/systemd/` and creating symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
+
+The paths in the image are updated based on `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
+
+### Requirements
+
+The service file must:
+* be in the package.
+* contain the following fields:
+  * `ExecStart`
+  * `User`
+  * `RestartSec`
+  * `WorkingDirectory`
+  * `Type=simple`
+  * `WantedBy=multi-user.target`
+
+## Libguest installation
+
+Libquestfs is a library for modifying disk images. It is used to mount the disk image without root permissions.
+
+### Debian based
+
+```bash
+sudo apt-get install libguestfs-tools
+
+# Add user kernel, which can be accessed without sudo. Other option is to give permissions to the existing kernel.
+apt-get download linux-image-$(uname -r)
+dpkg-deb -x linux-image-$(uname -r)*.deb ./
+export SUPERMIN_KERNEL=./boot/vmlinuz-image-$(uname -r)
+```
+
+`install libguestfs-tools` will install the tools, but it needs read access to the kernel (e.g. `/boot/vmlinuz-*`) image. 
+You can either create a new kernel image, that `supermin` will use (as shown above), or give read access to the existing one.
+To test functionality or to find the used kernel image, run:
+
+```bash
+libguestfs-test-tool
+```
+
+
+### Fedora
+
+```bash
+sudo dnf install libguestfs-tools
+```
+
+## Troubleshooting
+
+#### Libvirt error
+
+If you have error that look like this:
+```
+libguestfs: error: could not create appliance through libvirt. 
+Original error from libvirt: internal error: 
+process exited while connecting to monitor: 2025-03-03T14:51:53.981133Z qemu-kvm: -device {"driver":"scsi-hd","bus":"scsi0.0","channel":0,"scsi-id":0,"lun":0,"device_id":"drive-scsi0-0-0-0","drive":"libvirt-2-storage","id":"scsi0-0-0-0","bootindex":1,"write-cache":"on"}: Failed to get "write" lock
+        Is another process using the image?
+```
+
+Make sure you have `kvm` enabled.
