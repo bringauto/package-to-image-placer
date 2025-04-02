@@ -148,3 +148,17 @@ libguestfs-test-tool
 ```bash
 sudo dnf install libguestfs-tools
 ```
+
+## Troubleshooting
+
+#### Libvirt error
+
+If you have error that look like this:
+```
+libguestfs: error: could not create appliance through libvirt. 
+Original error from libvirt: internal error: 
+process exited while connecting to monitor: 2025-03-03T14:51:53.981133Z qemu-kvm: -device {"driver":"scsi-hd","bus":"scsi0.0","channel":0,"scsi-id":0,"lun":0,"device_id":"drive-scsi0-0-0-0","drive":"libvirt-2-storage","id":"scsi0-0-0-0","bootindex":1,"write-cache":"on"}: Failed to get "write" lock
+        Is another process using the image?
+```
+
+Make sure you have `kvm` enabled.

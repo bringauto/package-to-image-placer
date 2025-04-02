@@ -39,7 +39,7 @@ func cleanup() {
 func createDefaultConfig() configuration.Configuration {
 	return configuration.Configuration{
 		Target:           testImage,
-		NoClone:          false,
+		NoClone:          true,
 		Packages:         []string{exampleArchive},
 		PartitionNumbers: []int{1},
 		TargetDirectory:  "target/dir",
