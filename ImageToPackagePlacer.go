@@ -37,13 +37,19 @@ func main() {
 	}
 
 	newConfigFilePath := ""
+	var packages []string
 	if config.InteractiveRun {
-		config.Packages, err = user.SelectFilesInDir(config.PackageDir)
+		packages, err = user.SelectFilesInDir(config.PackageDir)
+		log.Printf("Selected packages: %v\n", packages)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 			return
 		}
+		for _, pkg := range packages {
+			packageConfig := configuration.PackageConfig{PackagePath: pkg}
+			config.Packages = append(config.Packages, packageConfig)
 
+		}
 		imagePath := ""
 		if config.NoClone {
 			imagePath = config.Target
@@ -72,7 +78,7 @@ func main() {
 
 	}
 
-	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(config.Packages, "\n\t"), config.PartitionNumbers)
+	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(packages, "\n\t"), config.PartitionNumbers)
 	if config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")
 		return
@@ -162,7 +168,7 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 		config.Target = *targetImage
 	}
 	if *targetDirectory != "" {
-		config.TargetDirectory = *targetDirectory
+		// config.TargetDirectory = *targetDirectory
 	}
 	if *logPath != "./" {
 		config.LogPath = *logPath

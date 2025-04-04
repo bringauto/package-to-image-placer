@@ -10,18 +10,30 @@ import (
 	"path/filepath"
 )
 
+type PackageConfig struct {
+	PackagePath       string   `json:"package-path"`
+	EnableServices    bool     `json:"enable-services"`
+	ServiceNameSuffix string   `json:"service-name-suffix"`
+	TargetDirectory   string   `json:"target-directory"`
+	OverwriteFiles    []string `json:"overwrite-files"`
+}
+
+type ConfigurationPackage struct {
+	PackagePath    string   `json:"path"`
+	OverwriteFiles []string `json:"overwrite-files"`
+}
+
 type Configuration struct {
-	Source           string   `json:"source"`
-	Target           string   `json:"target"`
-	NoClone          bool     `json:"no-clone"`
-	Packages         []string `json:"packages"`
-	PartitionNumbers []int    `json:"partition-numbers"`
-	TargetDirectory  string   `json:"target-directory"`
-	ServiceNames     []string `json:"service-names"`
-	Overwrite        bool     `json:"overwrite"`
-	LogPath          string   `json:"log-path"`
-	InteractiveRun   bool     `json:"-"`
-	PackageDir       string   `json:"-"`
+	Source                string                 `json:"source"`
+	Target                string                 `json:"target"`
+	NoClone               bool                   `json:"no-clone"`
+	Packages              []PackageConfig        `json:"packages"`
+	ConfigurationPackages []ConfigurationPackage `json:"configuration-packages"`
+	PartitionNumbers      []int                  `json:"partition-numbers"`
+	Overwrite             bool                   `json:"overwrite"`
+	LogPath               string                 `json:"log-path"`
+	InteractiveRun        bool                   `json:"-"` // Ignored by JSON
+	PackageDir            string                 `json:"-"` // Ignored by JSON
 }
 
 // CreateConfigurationFile Creates a file and places the configuration in form of a JSON string
@@ -77,6 +89,7 @@ func UpdateConfigurationFile(config Configuration, path string) error {
 }
 
 func ValidateConfiguration(config Configuration) error {
+	// TODO rework checks
 	if config.Target == "" {
 		return fmt.Errorf("target image path is missing, start with -h to see arguments")
 	}
@@ -84,21 +97,21 @@ func ValidateConfiguration(config Configuration) error {
 		return fmt.Errorf("source and target image paths are the same")
 	}
 	if config.Source == "" && !config.NoClone {
-		return fmt.Errorf("Either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
+		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
 	} else if !config.NoClone && !helper.DoesFileExists(config.Source) {
-		return fmt.Errorf("Source image path does not exist\n")
+		return fmt.Errorf("source image path does not exist\n")
 	}
 	if config.NoClone && !helper.DoesFileExists(config.Target) {
-		return fmt.Errorf("Target image does not exist\n")
+		return fmt.Errorf("target image does not exist\n")
 	}
 
 	if !config.InteractiveRun {
 		if len(config.Packages) == 0 {
 			return fmt.Errorf("no packages defined in configuration") // TODO check if packages exist
 		}
-		for _, packagePath := range config.Packages {
-			if !helper.DoesFileExists(packagePath) {
-				return fmt.Errorf("package %s does not exist", packagePath)
+		for _, pkg := range config.Packages {
+			if !helper.DoesFileExists(pkg.PackagePath) {
+				return fmt.Errorf("package %s does not exist", pkg.PackagePath)
 			}
 		}
 		if len(config.PartitionNumbers) == 0 {

@@ -207,7 +207,7 @@ func printSelectedPartitions(selectedPartitions []int) {
 // SelectTargetDirectory allows the user to select a directory to copy the package to.
 // The user can also create a new directory.
 // Returns the selected directory.
-func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
+func SelectTargetDirectory(rootDir, searchDir string, packagePath string) (string, error) {
 	// Validate that searchDir is within the rootDir
 	if !helper.IsWithinRootDir(rootDir, searchDir) {
 		return "", fmt.Errorf("attempt to navigate outside the allowed root directory")
@@ -222,7 +222,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	// Add options for current directory and creating a new directory
 	dirs = append([]string{"Select current directory", "Create new directory"}, dirs...)
 
-	header := "Select directory to copy package to. Press esc to quit.\nCurrent directory: \033[1;34m" + searchDir + "\n"
+	header := "Select directory to copy package to. Press esc to quit.\nPackage name: " + colorBlue + packagePath + colorReset + "\nCurrent directory: " + colorBlue + searchDir + colorReset + "\n"
 	idx, err := fuzzySelectOne(header, dirs)
 	if err != nil {
 		return "", err
@@ -249,7 +249,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	} else {
 		// Recurse into the selected directory
 		nextDir := filepath.Join(searchDir, selectedDir)
-		return SelectTargetDirectory(rootDir, nextDir)
+		return SelectTargetDirectory(rootDir, nextDir, packagePath)
 	}
 }
 

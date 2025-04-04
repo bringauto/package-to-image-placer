@@ -18,7 +18,7 @@ import (
 // serviceFile: full path to the service file in the target image
 // mountDir: path to the target image mount point
 // packageDir: path to the package directory in the target image
-func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool) error {
+func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool, serviceSuffix string) error {
 	log.Printf("Activating service %s", filepath.Base(serviceFile))
 	opts, err := parseServiceFile(serviceFile)
 	if err != nil {
