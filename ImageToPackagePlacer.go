@@ -69,7 +69,7 @@ func main() {
 			log.Fatalf("Error while selecting partitions: %s\n", err)
 		}
 
-		if user.GetUserConfirmation("\nDo you want to save the configuration?") {
+		if user.GetUserConfirmation("Do you want to save the configuration?") {
 			newConfigFilePath, err = configuration.CreateConfigurationFile(config)
 			if err != nil {
 				log.Printf("Error: %s\n", err)

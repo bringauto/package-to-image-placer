@@ -12,6 +12,7 @@ import (
 	"package-to-image-placer/pkg/service"
 	"package-to-image-placer/pkg/user"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -49,16 +50,28 @@ func CopyPackageActivateService(mountDir string, config *configuration.Configura
 		if err != nil {
 			return fmt.Errorf("failed to create target directory: %v", err)
 		}
-		return nil
 	}
 	log.Printf("Copying package to target directory: %s\n", targetDirectoryFullPath)
 	if !helper.IsWithinRootDir(mountDir, targetDirectoryFullPath) {
 		return fmt.Errorf("target directory is not within the mounted partition")
 	}
 
-	serviceFile, err := handleArchive(packageConfig.PackagePath, mountDir, targetDirectoryFullPath, config.Overwrite)
+	serviceFile, err := handleArchive(packageConfig.PackagePath, mountDir, targetDirectoryFullPath, config.InteractiveRun, &packageConfig.OverwriteFiles)
 	if err != nil {
 		return err
+	}
+
+	if config.InteractiveRun {
+		packageConfig.EnableServices = user.GetUserConfirmation("Do you want to enable services for package " + packageConfig.PackagePath + "?")
+		if packageConfig.EnableServices {
+			packageConfig.ServiceNameSuffix, err = user.ReadStringFromUser("Enter service name suffix (leave empty for none): ")
+			if err != nil {
+				return fmt.Errorf("error reading service name suffix: %v", err)
+			}
+			if strings.HasPrefix(packageConfig.ServiceNameSuffix, "-") {
+				return fmt.Errorf("service name suffix should not start with a hyphen")
+			}
+		}
 	}
 
 	if packageConfig.EnableServices {
@@ -128,7 +141,7 @@ func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Co
 
 // handleArchive handles the extraction of the archive file to the target directory.
 // It checks for sufficient free space and returns a service file if found.
-func handleArchive(archivePath, mountDir, targetDir string, overwrite bool) (string, error) {
+func handleArchive(archivePath, mountDir, targetDir string, interactiveRun bool, overwriteFiles *[]string) (string, error) {
 	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open zip file: %v", err)
@@ -142,7 +155,7 @@ func handleArchive(archivePath, mountDir, targetDir string, overwrite bool) (str
 	}
 	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
 	os.MkdirAll(targetArchiveDir, os.ModePerm)
-	serviceFile, err := decompressZipArchive(zipReader, targetArchiveDir, overwrite)
+	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, interactiveRun, overwriteFiles)
 	if err != nil {
 		return "", err
 	}
@@ -195,9 +208,9 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	return nil
 }
 
-// decompressZipArchive extracts the files from the zip archive to the target directory.
+// decompressZipArchiveAndReturnService extracts the files from the zip archive to the target directory.
 // It returns a list of service files found in the archive.
-func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite bool) (string, error) {
+func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, interactiveRun bool, overwriteFiles *[]string) (string, error) {
 	serviceFile := ""
 
 	for _, file := range zipReader.File {
@@ -218,12 +231,12 @@ func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite
 		if err := os.MkdirAll(filepath.Dir(targetFilePath), os.ModePerm); err != nil {
 			return "", err
 		}
-		if err := decompressZipFile(targetFilePath, file, overwrite); err != nil {
+		if err := decompressZipFile(targetFilePath, file, interactiveRun, overwriteFiles); err != nil {
 			return "", err
 		}
 		if strings.HasSuffix(file.Name, ".service") {
 			if serviceFile != "" {
-				return "", fmt.Errorf("multiple service files found in the archive")
+				return "", fmt.Errorf("multiple service files found in the package archive")
 			}
 			serviceFile = targetFilePath
 		}
@@ -233,18 +246,21 @@ func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite
 
 // decompressZipFile extracts a single file from the zip archive to the destination path.
 // It returns an error if the file already exists and overwrite is false.
-func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool) error {
+func decompressZipFile(destFilePath string, srcZipFile *zip.File, interactiveRun bool, overwriteFiles *[]string) error {
 	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
-	if !overwrite {
-		_, err := os.Stat(destFilePath)
-		if err == nil {
-			return fmt.Errorf("file %s already exists. Use -overwrite flag to overwrite existing files.", destFilePath)
-		}
-	} else {
-		// Remove the existing file or symlink if overwrite is true
-		err := os.Remove(destFilePath)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("unable to remove existing file %s: %v", destFilePath, err)
+	// Check if the destination file already exists
+	_, err := os.Stat(destFilePath)
+	if err == nil {
+		if interactiveRun {
+			if user.GetUserConfirmation("File: " + destFilePath + " already exists. Do you want to overwrite it?") {
+				*overwriteFiles = append(*overwriteFiles, destFilePath)
+			} else {
+				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePath)
+			}
+		} else {
+			if slices.Contains(*overwriteFiles, destFilePath) {
+				return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePath)
+			}
 		}
 	}
 	srcFile, err := srcZipFile.Open()

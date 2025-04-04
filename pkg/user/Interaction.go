@@ -98,7 +98,7 @@ func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
 		}
 	}
 
-	header := "Choose file to copy. Press esc to quit.\nCurrent directory: " + absDir + "\n"
+	header := "Choose file to copy. Press esc to quit.\nCurrent directory: " + colorBlue + absDir + colorReset + "\n"
 
 	selectedFileIndex, err := fuzzySelectOne(header, displayItems)
 	if err != nil {
@@ -176,7 +176,7 @@ func SelectPartitions(diskPath string) ([]int, error) {
 				displayItems[i] = "[ ] " + item
 			}
 		}
-		selectedPartitionIndex, err := fuzzySelectOne("Select partition to which the package will be copied: ", displayItems)
+		selectedPartitionIndex, err := fuzzySelectOne("Select partition to which the package will be copied. Press esc to quit.\n", displayItems)
 		if err != nil {
 			if err.Error() == "abort" {
 				fmt.Println("User aborted")
