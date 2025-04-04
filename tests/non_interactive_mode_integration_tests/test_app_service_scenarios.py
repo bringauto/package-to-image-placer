@@ -174,3 +174,20 @@ def test_write_multiple_packages_with_services(package_to_image_placer_binary):
         target_directory=target_directory,
     )
     assert inspect_image(config)
+
+
+def test_package_with_multiple_services(package_to_image_placer_binary):
+    """Creates package with multiple service files. It should crash because it's not supported"""
+    return
+
+
+def test_package_service_with_suffix(package_to_image_placer_binary):
+    """Creates package with service file with suffix."""
+    return
+
+
+def test_package_with_service_with_suffix_starting_with_hyphen(
+    package_to_image_placer_binary,
+):
+    """Creates package with service file with suffix starting with hyphen. It should crash because it's not to start service file with hyphen"""
+    return
