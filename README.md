@@ -112,6 +112,8 @@ The paths in the image are updated based on `WorkingDirectory` field, where the 
 The service file must:
 
 * be in the package.
+* service file name must end with `.service`.
+* multiple services for the same package are not supported.
 * contain the following fields:
   * `ExecStart`
   * `User`
