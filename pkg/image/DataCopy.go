@@ -56,7 +56,7 @@ func CopyPackageActivateService(mountDir string, config *configuration.Configura
 		return fmt.Errorf("target directory is not within the mounted partition")
 	}
 
-	serviceFile, err := handleArchive(packageConfig.PackagePath, mountDir, targetDirectoryFullPath, config.InteractiveRun, &packageConfig.OverwriteFiles)
+	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath, config.InteractiveRun)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func CopyPackageActivateService(mountDir string, config *configuration.Configura
 	}
 
 	if packageConfig.EnableServices {
-		err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite, packageConfig.ServiceNameSuffix)
+		err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, packageConfig)
 		if err != nil {
 			return fmt.Errorf("error while activating service: %v", err)
 		}
@@ -141,7 +141,8 @@ func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Co
 
 // handleArchive handles the extraction of the archive file to the target directory.
 // It checks for sufficient free space and returns a service file if found.
-func handleArchive(archivePath, mountDir, targetDir string, interactiveRun bool, overwriteFiles *[]string) (string, error) {
+func handleArchive(packageConfig *configuration.PackageConfig, mountDir, targetDir string, interactiveRun bool) (string, error) {
+	archivePath := packageConfig.PackagePath
 	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open zip file: %v", err)
@@ -155,7 +156,7 @@ func handleArchive(archivePath, mountDir, targetDir string, interactiveRun bool,
 	}
 	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
 	os.MkdirAll(targetArchiveDir, os.ModePerm)
-	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, interactiveRun, overwriteFiles)
+	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, interactiveRun, &packageConfig.OverwriteFiles)
 	if err != nil {
 		return "", err
 	}

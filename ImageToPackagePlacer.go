@@ -16,15 +16,15 @@ import (
 )
 
 func main() {
-	config, err := parseArguments(os.Args[1:])
+	err := parseArguments(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Error parsing arguments: %v", err)
 	}
-	err = configuration.ValidateConfiguration(config)
+	err = configuration.ValidateConfiguration()
 	if err != nil {
 		log.Fatalf("Configuration validation error: %v", err)
 	}
-	logFile, err := setupLogFile(config.LogPath)
+	logFile, err := setupLogFile(configuration.Config.LogPath)
 	if err != nil {
 		log.Fatalf("Error setting up log file: %v", err)
 	}
@@ -38,8 +38,8 @@ func main() {
 
 	newConfigFilePath := ""
 	var packages []string
-	if config.InteractiveRun {
-		packages, err = user.SelectFilesInDir(config.PackageDir)
+	if configuration.Config.InteractiveRun {
+		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir)
 		log.Printf("Selected packages: %v\n", packages)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
@@ -47,30 +47,30 @@ func main() {
 		}
 		for _, pkg := range packages {
 			packageConfig := configuration.PackageConfig{PackagePath: pkg}
-			config.Packages = append(config.Packages, packageConfig)
+			configuration.Config.Packages = append(configuration.Config.Packages, packageConfig)
 
 		}
 		imagePath := ""
-		if config.NoClone {
-			imagePath = config.Target
+		if configuration.Config.NoClone {
+			imagePath = configuration.Config.Target
 		} else {
-			imagePath = config.Source
+			imagePath = configuration.Config.Source
 		}
 
 		err = helper.ValidSourceImage(imagePath)
 		if err != nil {
-			helper.RemoveInvalidOutputImage(config.Target, config.NoClone)
+			helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
 			log.Fatalf("Error: %s\n", err)
 		}
 
-		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
+		configuration.Config.PartitionNumbers, err = user.SelectPartitions(imagePath)
 		if err != nil {
-			helper.RemoveInvalidOutputImage(config.Target, config.NoClone)
+			helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
 			log.Fatalf("Error while selecting partitions: %s\n", err)
 		}
 
 		if user.GetUserConfirmation("Do you want to save the configuration?") {
-			newConfigFilePath, err = configuration.CreateConfigurationFile(config)
+			newConfigFilePath, err = configuration.CreateConfigurationFile(configuration.Config)
 			if err != nil {
 				log.Printf("Error: %s\n", err)
 			}
@@ -78,32 +78,32 @@ func main() {
 
 	}
 
-	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(packages, "\n\t"), config.PartitionNumbers)
-	if config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
+	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(packages, "\n\t"), configuration.Config.PartitionNumbers)
+	if configuration.Config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")
 		return
 	}
 
-	if !config.NoClone {
-		if helper.DoesFileExists(config.Target) {
-			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
-			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
+	if !configuration.Config.NoClone {
+		if helper.DoesFileExists(configuration.Config.Target) {
+			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", configuration.Config.Target)
+			if configuration.Config.InteractiveRun && !user.GetUserConfirmation(askUser) {
 				log.Fatalf("file already exists and user chose not to delete it")
 			}
-			if err := os.Remove(config.Target); err != nil {
+			if err := os.Remove(configuration.Config.Target); err != nil {
 				log.Fatalf("unable to delete existing file: %s", err)
 			}
 		}
-		err := image.CloneImage(config.Source, config.Target)
+		err := image.CloneImage(configuration.Config.Source, configuration.Config.Target)
 		if err != nil {
-			helper.RemoveInvalidOutputImage(config.Target, config.NoClone)
+			helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
 			log.Fatalf("Error: %s\n", err)
 		}
 	}
 
-	err = image.CopyPackageToImagePartitions(&config)
+	err = image.CopyPackageToImagePartitions(&configuration.Config)
 	if err != nil {
-		helper.RemoveInvalidOutputImage(config.Target, config.NoClone)
+		helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
 		log.Fatalf("Error: %s\n", err)
 		return
 	}
@@ -111,36 +111,33 @@ func main() {
 	log.Printf("All packages copied successfully\n")
 
 	if newConfigFilePath != "" {
-		err = configuration.UpdateConfigurationFile(config, newConfigFilePath)
+		err = configuration.UpdateConfigurationFile(configuration.Config, newConfigFilePath)
 		if err != nil {
 			log.Fatalf("Error: %s\n", err)
 		}
 	}
 }
 
-func parseArguments(args []string) (configuration.Configuration, error) {
-	var config configuration.Configuration
+func parseArguments(args []string) error {
 	flags := flag.NewFlagSet("package-to-image-placer", flag.ContinueOnError)
 
-	configFile := flags.String("config", "", "Path to configuration file (non-interactive mode)")
+	configFile := flags.String("configuration.Config", "", "Path to configuration file (non-interactive mode)")
 	targetImage := flags.String("target", "", "Target image path (will be created).")
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
-	overwrite := flags.Bool("overwrite", false, "Overwrite files in target image")
-	targetDirectory := flags.String("target-dir", "", "Target directory in image (non-interactive mode)")
 	packageDirectory := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
 	logPath := flags.String("log-path", "./", "Path to log file")
 	showUsage := flags.Bool("h", false, "Show usage")
 
 	err := flags.Parse(args)
 	if err != nil {
-		return config, err
+		return err
 	}
 
 	if *showUsage {
 		fmt.Printf("Usage:\n" +
 			"Interactive: \t\tpackage-to-image-placer -target <target_image> [ -source <src_image> | -no-clone ] [ opts... ]\n" +
-			"Non-interactive: \tpackage-to-image-placer -config <config_file> [ <override-opts> ]\n")
+			"Non-interactive: \tpackage-to-image-placer -configuration.Config <config_file> [ <override-opts> ]\n")
 		flags.PrintDefaults()
 		os.Exit(0)
 	}
@@ -150,51 +147,40 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 		interactiveRun = false
 		file, err := os.Open(*configFile)
 		if err != nil {
-			return config, fmt.Errorf("error opening config file: %v", err)
+			return fmt.Errorf("error opening configuration.Config file: %v", err)
 		}
 		defer file.Close()
 
 		decoder := json.NewDecoder(file)
-		err = decoder.Decode(&config)
+		err = decoder.Decode(&configuration.Config)
 		if err != nil {
-			return config, fmt.Errorf("error decoding config file: %v", err)
+			return fmt.Errorf("error decoding configuration.Config file: %v", err)
 		}
 	}
 
 	if *sourceImage != "" {
-		config.Source = *sourceImage
+		configuration.Config.Source = *sourceImage
 	}
 	if *targetImage != "" {
-		config.Target = *targetImage
-	}
-	if *targetDirectory != "" {
-		// config.TargetDirectory = *targetDirectory
+		configuration.Config.Target = *targetImage
 	}
 	if *logPath != "./" {
-		config.LogPath = *logPath
+		configuration.Config.LogPath = *logPath
 	}
 
 	// Check if the overwrite flag has been set
-	overwriteSet := false
 	noCloneSet := false
 	flags.Visit(func(f *flag.Flag) {
-		if f.Name == "overwrite" {
-			overwriteSet = true
-		}
 		if f.Name == "no-clone" {
 			noCloneSet = true
 		}
 	})
-	if overwriteSet {
-		config.Overwrite = *overwrite
-	}
 	if noCloneSet {
-		config.NoClone = *noClone
+		configuration.Config.NoClone = *noClone
 	}
-	config.PackageDir = *packageDirectory
-
-	config.InteractiveRun = interactiveRun
-	return config, nil
+	configuration.Config.PackageDir = *packageDirectory
+	configuration.Config.InteractiveRun = interactiveRun
+	return nil
 }
 
 func setupLogFile(path string) (*os.File, error) {

@@ -6,7 +6,9 @@ import (
 	"io"
 	"log"
 	"os"
+	"package-to-image-placer/pkg/configuration"
 	"package-to-image-placer/pkg/helper"
+	"package-to-image-placer/pkg/user"
 	"path/filepath"
 	"strings"
 )
@@ -18,7 +20,7 @@ import (
 // serviceFile: full path to the service file in the target image
 // mountDir: path to the target image mount point
 // packageDir: path to the package directory in the target image
-func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool, serviceSuffix string) error {
+func AddService(serviceFile string, mountDir string, packageDir string, packageConfig *configuration.PackageConfig) error {
 	log.Printf("Activating service %s", filepath.Base(serviceFile))
 	opts, err := parseServiceFile(serviceFile)
 	if err != nil {
@@ -40,7 +42,7 @@ func AddService(serviceFile string, mountDir string, packageDir string, overwrit
 		return err
 	}
 
-	destPath, err := activateService(mountDir, serviceFile, overwrite)
+	destPath, err := activateService(mountDir, serviceFile, &packageConfig.OverwriteFiles)
 	if err != nil {
 		return err
 	}
@@ -49,17 +51,32 @@ func AddService(serviceFile string, mountDir string, packageDir string, overwrit
 }
 
 // activateService copies the service file to the image and creates a symlink to it in the multi-user.target.wants directory
-func activateService(mountDir string, serviceFile string, overwrite bool) (string, error) {
+func activateService(mountDir string, serviceFile string, overwriteFiles *[]string) (string, error) {
 	destPath := filepath.Join(mountDir, "etc/systemd/system", filepath.Base(serviceFile))
 	symlinkPath := filepath.Join(mountDir, "/etc/systemd/system/multi-user.target.wants", filepath.Base(serviceFile))
-	if !overwrite {
-		if _, err := os.Lstat(destPath); err == nil {
-			return "", fmt.Errorf("service file already exists: '%s'... Use -overwrite to overwrite the service", destPath)
+
+	if !helper.CanYouCopyFile(destPath, *overwriteFiles) {
+		if configuration.Config.InteractiveRun {
+			if user.GetUserConfirmation("File " + destPath + " already exists. Do you want to overwrite it?") {
+				overwriteFiles = &[]string{destPath}
+			} else {
+				return "", fmt.Errorf("file %s already exists and user chose not to overwrite it", destPath)
+			}
 		}
-		if _, err := os.Lstat(symlinkPath); err == nil {
-			return "", fmt.Errorf("service symlink already exists: '%s'... Use -overwrite to overwrite the symlink", symlinkPath)
-		}
+		return "", fmt.Errorf("file %s already exists and is not in the overwrite list", destPath)
 	}
+
+	if !helper.CanYouCopyFile(symlinkPath, *overwriteFiles) {
+		if configuration.Config.InteractiveRun {
+			if user.GetUserConfirmation("Symlink " + destPath + " already exists. Do you want to overwrite it?") {
+				overwriteFiles = &[]string{destPath}
+			} else {
+				return "", fmt.Errorf("symlink %s already exists and user chose not to overwrite it", destPath)
+			}
+		}
+		return "", fmt.Errorf("symlink %s already exists and is not in the overwrite list", symlinkPath)
+	}
+
 	err := helper.CopyFile(destPath, serviceFile, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to copy service file: %v", err)

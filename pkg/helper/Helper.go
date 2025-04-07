@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -79,6 +80,14 @@ func RemoveInvalidOutputImage(outputImage string, no_clone bool) error {
 func SplitStringPreserveSubstrings(input string) []string {
 	re := regexp.MustCompile(`"[^"]*"|\S+`)
 	return re.FindAllString(input, -1)
+}
+
+func CanYouCopyFile(dstFile string, overWriteFiles []string) bool {
+
+	if slices.Contains(overWriteFiles, dstFile) || !DoesFileExists(dstFile) {
+		return true
+	}
+	return false
 }
 
 // CopyFile copies a file from the source path to the destination path with the specified file mode.

@@ -30,10 +30,22 @@ type Configuration struct {
 	Packages              []PackageConfig        `json:"packages"`
 	ConfigurationPackages []ConfigurationPackage `json:"configuration-packages"`
 	PartitionNumbers      []int                  `json:"partition-numbers"`
-	Overwrite             bool                   `json:"overwrite"`
 	LogPath               string                 `json:"log-path"`
 	InteractiveRun        bool                   `json:"-"` // Ignored by JSON
 	PackageDir            string                 `json:"-"` // Ignored by JSON
+}
+
+// Global variable to hold the configuration
+// This is a workaround to avoid passing the configuration around
+var Config = Configuration{
+	Source:                "",
+	Target:                "",
+	NoClone:               false,
+	Packages:              []PackageConfig{},
+	ConfigurationPackages: []ConfigurationPackage{},
+	PartitionNumbers:      []int{},
+	LogPath:               "",
+	InteractiveRun:        false,
 }
 
 // CreateConfigurationFile Creates a file and places the configuration in form of a JSON string
@@ -88,39 +100,39 @@ func UpdateConfigurationFile(config Configuration, path string) error {
 	return nil
 }
 
-func ValidateConfiguration(config Configuration) error {
+func ValidateConfiguration() error {
 	// TODO rework checks
-	if config.Target == "" {
+	if Config.Target == "" {
 		return fmt.Errorf("target image path is missing, start with -h to see arguments")
 	}
-	if config.Target == config.Source {
+	if Config.Target == Config.Source {
 		return fmt.Errorf("source and target image paths are the same")
 	}
-	if config.Source == "" && !config.NoClone {
+	if Config.Source == "" && !Config.NoClone {
 		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
-	} else if !config.NoClone && !helper.DoesFileExists(config.Source) {
+	} else if !Config.NoClone && !helper.DoesFileExists(Config.Source) {
 		return fmt.Errorf("source image path does not exist\n")
 	}
-	if config.NoClone && !helper.DoesFileExists(config.Target) {
+	if Config.NoClone && !helper.DoesFileExists(Config.Target) {
 		return fmt.Errorf("target image does not exist\n")
 	}
 
-	if !config.InteractiveRun {
-		if len(config.Packages) == 0 {
+	if !Config.InteractiveRun {
+		if len(Config.Packages) == 0 {
 			return fmt.Errorf("no packages defined in configuration") // TODO check if packages exist
 		}
-		for _, pkg := range config.Packages {
+		for _, pkg := range Config.Packages {
 			if !helper.DoesFileExists(pkg.PackagePath) {
 				return fmt.Errorf("package %s does not exist", pkg.PackagePath)
 			}
 		}
-		if len(config.PartitionNumbers) == 0 {
+		if len(Config.PartitionNumbers) == 0 {
 			return fmt.Errorf("no partition numbers defined in configuration")
 		}
 	}
 
-	// config.LogPath is there to avoid the error message when the log path is not defined
-	if !helper.DoesFileExists(config.LogPath) && config.LogPath != "" {
+	// Config.LogPath is there to avoid the error message when the log path is not defined
+	if !helper.DoesFileExists(Config.LogPath) && Config.LogPath != "" {
 		return fmt.Errorf("log path does not exist")
 
 	}
