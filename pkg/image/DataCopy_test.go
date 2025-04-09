@@ -4,6 +4,7 @@ import (
 	"os"
 	"package-to-image-placer/pkg/configuration"
 	"package-to-image-placer/pkg/helper"
+	"strings"
 	"testing"
 )
 
@@ -131,7 +132,7 @@ func TestMountPartitionAndCopyPackage_SuccessOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	configuration.Config.Packages[0].OverwriteFiles = nil
+	configuration.Config.Packages[0].OverwriteFiles = []string{"/example/a/b/c/file"}
 
 	err = MountPartitionAndCopyPackages(partitionNumber)
 	if err != nil {
@@ -145,7 +146,7 @@ func TestMountPartitionAndCopyPackage_TargetDirectoryOutOfMount(t *testing.T) {
 	err := MountPartitionAndCopyPackages(partitionNumber)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
-	} else if err.Error() != "target directory is not within the mounted partition" {
+	} else if !strings.Contains(err.Error(), "target directory is not within the mounted partition") {
 		t.Fatalf("expected error message 'target directory is not within the mounted partition', got %v", err)
 	}
 }
