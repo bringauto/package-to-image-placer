@@ -24,10 +24,10 @@ const timeout = 60 * time.Second
 
 // CopyPackageToImagePartitions copies the specified packages to the specified partitions in the configuration.
 // It iterates over each partition and package, calling MountPartitionAndCopyPackages for each combination.
-func CopyPackageToImagePartitions(config *configuration.Configuration) error {
-	for _, partition := range config.PartitionNumbers {
+func CopyPackageToImagePartitions() error {
+	for _, partition := range configuration.Config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
-		err := MountPartitionAndCopyPackages(partition, config)
+		err := MountPartitionAndCopyPackages(partition)
 		if err != nil {
 			return err
 		}
@@ -35,10 +35,10 @@ func CopyPackageToImagePartitions(config *configuration.Configuration) error {
 	return nil
 }
 
-func CopyPackageActivateService(mountDir string, config *configuration.Configuration, packageConfig *configuration.PackageConfig) error {
+func CopyPackageActivateService(mountDir string, packageConfig *configuration.PackageConfig) error {
 	var targetDirectoryFullPath string
 	var err error
-	if config.InteractiveRun {
+	if configuration.Config.InteractiveRun {
 		targetDirectoryFullPath, err = user.SelectTargetDirectory(mountDir, mountDir, packageConfig.PackagePath)
 		if err != nil {
 			return err
@@ -56,12 +56,17 @@ func CopyPackageActivateService(mountDir string, config *configuration.Configura
 		return fmt.Errorf("target directory is not within the mounted partition")
 	}
 
-	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath, config.InteractiveRun)
+	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath, configuration.Config.InteractiveRun)
 	if err != nil {
 		return err
 	}
 
-	if config.InteractiveRun {
+	if serviceFile == "" {
+		log.Printf("No service file found in the package: %s\n", packageConfig.PackagePath)
+		return nil
+	}
+
+	if configuration.Config.InteractiveRun {
 		packageConfig.EnableServices = user.GetUserConfirmation("Do you want to enable services for package " + packageConfig.PackagePath + "?")
 		if packageConfig.EnableServices {
 			packageConfig.ServiceNameSuffix, err = user.ReadStringFromUser("Enter service name suffix (leave empty for none): ")
@@ -85,7 +90,7 @@ func CopyPackageActivateService(mountDir string, config *configuration.Configura
 
 // MountPartitionAndCopyPackages mounts the specified partition, copies the package to it, and activates any service files found in the package.
 // It handles signals for unmounting the partition and ensures the directory is populated before proceeding.
-func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Configuration) error {
+func MountPartitionAndCopyPackages(partitionNumber int) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -103,7 +108,7 @@ func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Co
 
 	errChan := make(chan string)
 	go func() {
-		errChan = mountPartition(config.Target, partitionNumber, mountDir, errChan)
+		errChan = mountPartition(configuration.Config.Target, partitionNumber, mountDir, errChan)
 	}()
 
 	populatedChan := make(chan error)
@@ -129,8 +134,8 @@ func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Co
 		unmount(mountDir)
 	}()
 
-	for _, packageConfig := range config.Packages {
-		err = CopyPackageActivateService(mountDir, config, &packageConfig)
+	for i := range configuration.Config.Packages {
+		err = CopyPackageActivateService(mountDir, &configuration.Config.Packages[i])
 		if err != nil {
 			return fmt.Errorf("error while copying package: %v", err)
 		}
