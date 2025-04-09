@@ -56,7 +56,7 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 		return fmt.Errorf("target directory is not within the mounted partition")
 	}
 
-	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath, configuration.Config.InteractiveRun)
+	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func MountPartitionAndCopyPackages(partitionNumber int) error {
 
 // handleArchive handles the extraction of the archive file to the target directory.
 // It checks for sufficient free space and returns a service file if found.
-func handleArchive(packageConfig *configuration.PackageConfig, mountDir, targetDir string, interactiveRun bool) (string, error) {
+func handleArchive(packageConfig *configuration.PackageConfig, mountDir string, targetDir string) (string, error) {
 	archivePath := packageConfig.PackagePath
 	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -161,7 +161,7 @@ func handleArchive(packageConfig *configuration.PackageConfig, mountDir, targetD
 	}
 	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
 	os.MkdirAll(targetArchiveDir, os.ModePerm)
-	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, interactiveRun, &packageConfig.OverwriteFiles)
+	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, mountDir, &packageConfig.OverwriteFiles)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +216,7 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 
 // decompressZipArchiveAndReturnService extracts the files from the zip archive to the target directory.
 // It returns a list of service files found in the archive.
-func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, interactiveRun bool, overwriteFiles *[]string) (string, error) {
+func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, mountDir string, overwriteFiles *[]string) (string, error) {
 	serviceFile := ""
 
 	for _, file := range zipReader.File {
@@ -237,7 +237,7 @@ func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir s
 		if err := os.MkdirAll(filepath.Dir(targetFilePath), os.ModePerm); err != nil {
 			return "", err
 		}
-		if err := decompressZipFile(targetFilePath, file, interactiveRun, overwriteFiles); err != nil {
+		if err := decompressZipFile(targetFilePath, file, mountDir, overwriteFiles); err != nil {
 			return "", err
 		}
 		if strings.HasSuffix(file.Name, ".service") {
@@ -252,21 +252,20 @@ func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir s
 
 // decompressZipFile extracts a single file from the zip archive to the destination path.
 // It returns an error if the file already exists and overwrite is false.
-func decompressZipFile(destFilePath string, srcZipFile *zip.File, interactiveRun bool, overwriteFiles *[]string) error {
+func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir string, overwriteFiles *[]string) error {
 	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
 	// Check if the destination file already exists
 	_, err := os.Stat(destFilePath)
 	if err == nil {
-		if interactiveRun {
-			if user.GetUserConfirmation("File: " + destFilePath + " already exists. Do you want to overwrite it?") {
-				*overwriteFiles = append(*overwriteFiles, destFilePath)
+		destFilePathWithoutMountDir := strings.TrimPrefix(destFilePath, mountDir)
+		if configuration.Config.InteractiveRun {
+			if user.GetUserConfirmation("File: " + destFilePathWithoutMountDir + " already exists. Do you want to overwrite it?") {
+				*overwriteFiles = append(*overwriteFiles, destFilePathWithoutMountDir)
 			} else {
-				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePath)
+				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePathWithoutMountDir)
 			}
-		} else {
-			if slices.Contains(*overwriteFiles, destFilePath) {
-				return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePath)
-			}
+		} else if !slices.Contains(*overwriteFiles, destFilePathWithoutMountDir) {
+			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathWithoutMountDir)
 		}
 	}
 	srcFile, err := srcZipFile.Open()

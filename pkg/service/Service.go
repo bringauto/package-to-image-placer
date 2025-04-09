@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"github.com/coreos/go-systemd/v22/unit"
 	"io"
 	"log"
 	"os"
@@ -10,7 +9,10 @@ import (
 	"package-to-image-placer/pkg/helper"
 	"package-to-image-placer/pkg/user"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/coreos/go-systemd/v22/unit"
 )
 
 // AddService adds the serviceFile to /etc/systemd/system in image
@@ -59,28 +61,30 @@ func activateService(mountDir string, serviceFile string, packageConfig *configu
 
 	destPath := filepath.Join(mountDir, "etc/systemd/system", filepath.Base(serviceDestFile))
 	symlinkPath := filepath.Join(mountDir, "/etc/systemd/system/multi-user.target.wants", filepath.Base(serviceDestFile))
+	destFilePathWithoutMountDir := strings.TrimPrefix(destPath, mountDir)
+	symlinkPathWithoutMountDir := strings.TrimPrefix(symlinkPath, mountDir)
 
 	if !helper.CanYouCopyFile(destPath, packageConfig.OverwriteFiles) {
 		if configuration.Config.InteractiveRun {
-			if user.GetUserConfirmation("File " + destPath + " already exists. Do you want to overwrite it?") {
-				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, destPath)
+			if user.GetUserConfirmation("File " + destFilePathWithoutMountDir + " already exists. Do you want to overwrite it?") {
+				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, destFilePathWithoutMountDir)
 			} else {
-				return "", fmt.Errorf("file %s already exists and user chose not to overwrite it", destPath)
+				return "", fmt.Errorf("file %s already exists and user chose not to overwrite it", destFilePathWithoutMountDir)
 			}
-		} else {
-			return "", fmt.Errorf("file %s already exists and is not in the overwrite list", destPath)
+		} else if !slices.Contains(packageConfig.OverwriteFiles, destFilePathWithoutMountDir) {
+			return "", fmt.Errorf("file %s already exists and is not in the overwrite list", destFilePathWithoutMountDir)
 		}
 	}
 
 	if !helper.CanYouCopyFile(symlinkPath, packageConfig.OverwriteFiles) {
 		if configuration.Config.InteractiveRun {
-			if user.GetUserConfirmation("Symlink " + destPath + " already exists. Do you want to overwrite it?") {
-				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, symlinkPath)
+			if user.GetUserConfirmation("Symlink " + symlinkPathWithoutMountDir + " already exists. Do you want to overwrite it?") {
+				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, symlinkPathWithoutMountDir)
 			} else {
-				return "", fmt.Errorf("symlink %s already exists and user chose not to overwrite it", destPath)
+				return "", fmt.Errorf("symlink %s already exists and user chose not to overwrite it", symlinkPathWithoutMountDir)
 			}
-		} else {
-			return "", fmt.Errorf("symlink %s already exists and is not in the overwrite list", destPath)
+		} else if !slices.Contains(packageConfig.OverwriteFiles, symlinkPathWithoutMountDir) {
+			return "", fmt.Errorf("symlink %s already exists and is not in the overwrite list", symlinkPathWithoutMountDir)
 		}
 	}
 
