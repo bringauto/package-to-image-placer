@@ -3,18 +3,20 @@ package user
 import (
 	"bufio"
 	"fmt"
-	"github.com/diskfs/go-diskfs"
-	"github.com/diskfs/go-diskfs/filesystem"
-	"github.com/koki-develop/go-fzf"
-	"golang.org/x/term"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"package-to-image-placer/pkg/helper"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/diskfs/go-diskfs"
+	"github.com/diskfs/go-diskfs/filesystem"
+	"github.com/koki-develop/go-fzf"
+	"golang.org/x/term"
 )
 
 const interactionTextColor = "\033[1;36m"
@@ -289,8 +291,19 @@ func getDirectories(path string, rootDir string) ([]string, error) {
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.
 // Returns true if the user confirms, false otherwise.
 func GetUserConfirmation(message string) bool {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	defer signal.Stop(c)
+
+	go func() {
+		<-c
+		CleanUpCommandLine()
+		os.Exit(1)
+	}()
+
 	SetUpCommandline()
 	defer CleanUpCommandLine()
+
 	var b = make([]byte, 1)
 	fmt.Print(interactionTextColor + message + colorReset + " [Y|y to confirm, any other key to cancel]\n")
 	_, err := os.Stdin.Read(b)

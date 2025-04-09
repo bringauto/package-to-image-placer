@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 )
 
@@ -82,12 +81,19 @@ func SplitStringPreserveSubstrings(input string) []string {
 	return re.FindAllString(input, -1)
 }
 
-func CanYouCopyFile(dstFile string, overWriteFiles []string) bool {
+func RemoveMountDirAndPackageName(path string, mountDir string, packageDir string, packagePath string) string {
+	// strings.TrimPrefix(serviceFile, mountDir+strings.TrimSuffix(filepath.Base(packageConfig.PackagePath), ".zip"))
+	path = strings.TrimPrefix(path, mountDir)
 
-	if slices.Contains(overWriteFiles, dstFile) || !DoesFileExists(dstFile) {
-		return true
-	}
-	return false
+	path = strings.TrimPrefix(path, "/")
+	packageDir = strings.TrimPrefix(packageDir, "/")
+	path = strings.TrimPrefix(path, packageDir)
+
+	path = strings.TrimPrefix(path, "/")
+	packageName := strings.TrimSuffix(filepath.Base(packagePath), ".zip")
+	path = strings.TrimPrefix(path, packageName)
+
+	return path
 }
 
 // CopyFile copies a file from the source path to the destination path with the specified file mode.

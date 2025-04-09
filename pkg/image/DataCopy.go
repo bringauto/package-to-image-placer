@@ -63,6 +63,11 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 
 	if serviceFile == "" {
 		log.Printf("No service file found in the package: %s\n", packageConfig.PackagePath)
+
+		// check if the package has disabled services
+		if packageConfig.EnableServices {
+			return fmt.Errorf("package %s has no service file, but services are enabled", packageConfig.PackagePath)
+		}
 		return nil
 	}
 
@@ -161,7 +166,7 @@ func handleArchive(packageConfig *configuration.PackageConfig, mountDir string, 
 	}
 	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
 	os.MkdirAll(targetArchiveDir, os.ModePerm)
-	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, mountDir, &packageConfig.OverwriteFiles)
+	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, mountDir, packageConfig)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +221,7 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 
 // decompressZipArchiveAndReturnService extracts the files from the zip archive to the target directory.
 // It returns a list of service files found in the archive.
-func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, mountDir string, overwriteFiles *[]string) (string, error) {
+func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, mountDir string, packageConfig *configuration.PackageConfig) (string, error) {
 	serviceFile := ""
 
 	for _, file := range zipReader.File {
@@ -237,7 +242,7 @@ func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir s
 		if err := os.MkdirAll(filepath.Dir(targetFilePath), os.ModePerm); err != nil {
 			return "", err
 		}
-		if err := decompressZipFile(targetFilePath, file, mountDir, overwriteFiles); err != nil {
+		if err := decompressZipFile(targetFilePath, file, mountDir, packageConfig); err != nil {
 			return "", err
 		}
 		if strings.HasSuffix(file.Name, ".service") {
@@ -252,20 +257,20 @@ func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir s
 
 // decompressZipFile extracts a single file from the zip archive to the destination path.
 // It returns an error if the file already exists and overwrite is false.
-func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir string, overwriteFiles *[]string) error {
+func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir string, packageConfig *configuration.PackageConfig) error {
 	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
 	// Check if the destination file already exists
 	_, err := os.Stat(destFilePath)
 	if err == nil {
-		destFilePathWithoutMountDir := strings.TrimPrefix(destFilePath, mountDir)
+		destFilePathInPackage := helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
 		if configuration.Config.InteractiveRun {
-			if user.GetUserConfirmation("File: " + destFilePathWithoutMountDir + " already exists. Do you want to overwrite it?") {
-				*overwriteFiles = append(*overwriteFiles, destFilePathWithoutMountDir)
+			if user.GetUserConfirmation("File: " + destFilePathInPackage + " already exists. Do you want to overwrite it?") {
+				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, destFilePathInPackage)
 			} else {
-				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePathWithoutMountDir)
+				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePathInPackage)
 			}
-		} else if !slices.Contains(*overwriteFiles, destFilePathWithoutMountDir) {
-			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathWithoutMountDir)
+		} else if !slices.Contains(packageConfig.OverwriteFiles, destFilePathInPackage) {
+			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathInPackage)
 		}
 	}
 	srcFile, err := srcZipFile.Open()

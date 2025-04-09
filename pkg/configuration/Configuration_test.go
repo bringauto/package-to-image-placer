@@ -6,8 +6,22 @@ import (
 	"testing"
 )
 
-const package1 = "../../testdata/archives/example.zip"
-const package2 = "../../testdata/archives/tooBig.zip"
+var package1 = PackageConfig{
+	PackagePath:       "../../testdata/archives/example_without_service.zip",
+	EnableServices:    true,
+	ServiceNameSuffix: "example",
+	TargetDirectory:   "target/dir",
+	OverwriteFiles:    []string{"file1.txt", "file2.txt"},
+}
+
+var package2 = PackageConfig{
+	PackagePath:       "../../testdata/archives/example_with_service.zip",
+	EnableServices:    false,
+	ServiceNameSuffix: "tooBig",
+	TargetDirectory:   "target/dir",
+	OverwriteFiles:    []string{"file3.txt", "file4.txt"},
+}
+
 const sourceImg = "../../testdata/testImage.img"
 
 func TestMain(m *testing.M) {
@@ -36,144 +50,131 @@ func cleanup() {
 }
 
 func TestValidateConfiguration_Success(t *testing.T) {
-	config := Configuration{
+	Config = Configuration{
 		Source:           sourceImg,
 		Target:           "target.img",
 		NoClone:          false,
-		Packages:         []string{package1, package2},
+		Packages:         []PackageConfig{package1, package2},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "./",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
 
 func TestValidateConfiguration_PackageNotExist(t *testing.T) {
-	config := Configuration{
+	var nonexistentPackage = PackageConfig{
+		PackagePath:       "nonexistent.zip",
+		EnableServices:    true,
+		ServiceNameSuffix: "example",
+		TargetDirectory:   "target/dir",
+		OverwriteFiles:    []string{"file1.txt", "file2.txt"},
+	}
+
+	Config = Configuration{
 		Source:           sourceImg,
 		Target:           "target.img",
 		NoClone:          false,
-		Packages:         []string{"nonexistent.zip"},
+		Packages:         []PackageConfig{nonexistentPackage},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "./",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 }
 
 func TestValidateConfiguration_MissingTarget(t *testing.T) {
-	config := Configuration{
+	Config = Configuration{
 		Source:           sourceImg,
 		NoClone:          false,
-		Packages:         []string{package1, package2},
+		Packages:         []PackageConfig{package1, package2},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "./",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 }
 
 func TestValidateConfiguration_SameSourceAndTarget(t *testing.T) {
-	config := Configuration{
+	Config = Configuration{
 		Source:           sourceImg,
 		Target:           sourceImg,
 		NoClone:          false,
-		Packages:         []string{package1, package2},
+		Packages:         []PackageConfig{package1, package2},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "./",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 }
 
 func TestValidateConfiguration_NoSourceAndNoClone(t *testing.T) {
-	config := Configuration{
+	Config = Configuration{
 		Target:           "target.img",
 		NoClone:          false,
-		Packages:         []string{package1, package2},
+		Packages:         []PackageConfig{package1, package2},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "./",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 }
 
 func TestValidateConfiguration_NoCloneTargetDoesNotExist(t *testing.T) {
-	config := Configuration{
+	Config = Configuration{
 		Target:           "nonexistent.img",
 		NoClone:          true,
-		Packages:         []string{package1, package2},
+		Packages:         []PackageConfig{package1, package2},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "./",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 }
 
 func TestValidateConfiguration_InvalidLogPath(t *testing.T) {
-	config := Configuration{
+	Config = Configuration{
 		Source:           sourceImg,
 		Target:           "target.img",
 		NoClone:          false,
-		Packages:         []string{package1, package2},
+		Packages:         []PackageConfig{package1, package2},
 		PartitionNumbers: []int{1, 2},
-		TargetDirectory:  "target/dir",
-		ServiceNames:     []string{"service1", "service2"},
-		Overwrite:        true,
 		InteractiveRun:   false,
 		PackageDir:       "package/dir",
 		LogPath:          "/invalid/log/path",
 	}
 
-	err := ValidateConfiguration(config)
+	err := ValidateConfiguration()
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
