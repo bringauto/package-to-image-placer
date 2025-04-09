@@ -120,8 +120,7 @@ func main() {
 
 func parseArguments(args []string) error {
 	flags := flag.NewFlagSet("package-to-image-placer", flag.ContinueOnError)
-
-	configFile := flags.String("configuration.Config", "", "Path to configuration file (non-interactive mode)")
+	configFile := flags.String("config", "", "Path to configuration file (non-interactive mode)")
 	targetImage := flags.String("target", "", "Target image path (will be created).")
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
