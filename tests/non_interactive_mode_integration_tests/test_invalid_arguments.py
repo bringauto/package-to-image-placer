@@ -4,6 +4,7 @@ import os
 from test_utils.test_utils import (
     run_package_to_image_placer,
     create_config,
+    create_package_config,
     create_test_package,
     create_image,
     make_image_mountable,
@@ -11,7 +12,7 @@ from test_utils.test_utils import (
 )
 
 
-def test_invalid_file_paths(package_to_image_placer_binary):
+def test_01_invalid_file_paths(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the paths are invalid"""
 
     r1 = run_package_to_image_placer(package_to_image_placer_binary, config="non_existent_file.json")
@@ -30,7 +31,7 @@ def test_invalid_file_paths(package_to_image_placer_binary):
     assert r3.returncode == 1
 
 
-def test_empty_image_file(package_to_image_placer_binary):
+def test_02_empty_image_file(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the image file is empty"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img"
@@ -53,7 +54,7 @@ def test_empty_image_file(package_to_image_placer_binary):
     assert not pathlib.Path(img_out).exists()
 
 
-def test_invalid_image_file(package_to_image_placer_binary):
+def test_03_invalid_image_file(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the image file is invalid"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img"
@@ -77,7 +78,7 @@ def test_invalid_image_file(package_to_image_placer_binary):
     assert not pathlib.Path(img_out).exists()
 
 
-def test_without_specified_partitions(package_to_image_placer_binary):
+def test_04_without_specified_partitions(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the partitions are not specified"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img"
@@ -99,7 +100,7 @@ def test_without_specified_partitions(package_to_image_placer_binary):
     assert not pathlib.Path(img_out).exists()
 
 
-def test_without_specified_package(package_to_image_placer_binary):
+def test_05_without_specified_package(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the package is not specified"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img"
@@ -118,7 +119,7 @@ def test_without_specified_package(package_to_image_placer_binary):
     assert not pathlib.Path(img_out).exists()
 
 
-def test_invalid_config_format(package_to_image_placer_binary):
+def test_06_invalid_config_format(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the config file is missing a field"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"

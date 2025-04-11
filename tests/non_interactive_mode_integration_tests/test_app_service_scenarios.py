@@ -11,7 +11,7 @@ from test_utils.test_utils import (
 )
 
 
-def test_write_package_with_service(package_to_image_placer_binary):
+def test_01_write_package_with_service(package_to_image_placer_binary):
     """Test if the package_to_image_placer will write a package with a service to an image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -35,7 +35,7 @@ def test_write_package_with_service(package_to_image_placer_binary):
     assert inspect_image(config)
 
 
-def test_write_package_with_services(package_to_image_placer_binary):
+def test_02_write_package_with_services(package_to_image_placer_binary):
     """Test if the package_to_image_placer will write a package with two services to an image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -67,7 +67,7 @@ def test_write_package_with_services(package_to_image_placer_binary):
     assert inspect_image(config)
 
 
-def test_write_packages_with_services_with_override(package_to_image_placer_binary):
+def test_03_write_packages_with_services_with_override(package_to_image_placer_binary):
     """Test if the package_to_image_placer will write two packages with two services to an image when override is set to True"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -103,7 +103,7 @@ def test_write_packages_with_services_with_override(package_to_image_placer_bina
     assert inspect_image(config)
 
 
-def test_write_packages_with_services_without_override(package_to_image_placer_binary):
+def test_04_write_packages_with_services_without_override(package_to_image_placer_binary):
     """Test if the package_to_image_placer will fail when attempting to write two packages with the same service to an image without override enabled"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -135,7 +135,7 @@ def test_write_packages_with_services_without_override(package_to_image_placer_b
     assert not os.path.exists(img_out)
 
 
-def test_write_multiple_packages_with_services(package_to_image_placer_binary):
+def test_05_write_multiple_packages_with_services(package_to_image_placer_binary):
     """Write multiple packages with services to an image"""
     config = "test_data/test_config.json"
     img_in_out = "test_data/test_img.img.in"
@@ -176,17 +176,17 @@ def test_write_multiple_packages_with_services(package_to_image_placer_binary):
     assert inspect_image(config)
 
 
-def test_package_with_multiple_services(package_to_image_placer_binary):
+def test_06_package_with_multiple_services(package_to_image_placer_binary):
     """Creates package with multiple service files. It should crash because it's not supported"""
     return
 
 
-def test_package_service_with_suffix(package_to_image_placer_binary):
+def test_07_package_service_with_suffix(package_to_image_placer_binary):
     """Creates package with service file with suffix."""
     return
 
 
-def test_package_with_service_with_suffix_starting_with_hyphen(
+def test_08_package_with_service_with_suffix_starting_with_hyphen(
     package_to_image_placer_binary,
 ):
     """Creates package with service file with suffix starting with hyphen. It should crash because it's not to start service file with hyphen"""
