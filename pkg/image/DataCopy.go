@@ -269,7 +269,11 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 			} else {
 				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePathInPackage)
 			}
-		} else if !slices.Contains(packageConfig.OverwriteFiles, destFilePathInPackage) {
+		}
+		if slices.Contains(packageConfig.OverwriteFiles, destFilePathInPackage) {
+			os.Remove(destFilePath)
+			log.Printf("File %s already exists and is marked for overwrite", destFilePathInPackage)
+		} else {
 			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathInPackage)
 		}
 	}
