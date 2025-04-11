@@ -45,8 +45,7 @@ def test_02_empty_image_file(package_to_image_placer_binary):
 
     create_test_package(package, "1KB")
 
-    create_config(config, img_in, img_out, [package_zip], partition_numbers)
-
+    create_config(config, img_in, img_out, [create_package_config(package_zip)], partition_numbers)
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
     assert result.returncode == 1
@@ -69,7 +68,7 @@ def test_03_invalid_image_file(package_to_image_placer_binary):
 
     create_test_package(package, "2KB")
 
-    create_config(config, img_in, img_out, [package_zip], partition_numbers)
+    create_config(config, img_in, img_out, [create_package_config(package_zip)], partition_numbers)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -91,7 +90,7 @@ def test_04_without_specified_partitions(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [package_zip], partition_numbers)
+    create_config(config, img_in, img_out, [create_package_config(package_zip)], partition_numbers)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -136,7 +135,14 @@ def test_06_invalid_config_format(package_to_image_placer_binary):
         if pathlib.Path(img_out).exists():
             os.remove(img_out)
 
-        create_config(config, img_in, img_out, [package_zip], partitions, remove_from_config=remove_from_config)
+        create_config(
+            config,
+            img_in,
+            img_out,
+            [create_package_config(package_zip)],
+            partitions,
+            remove_from_config=remove_from_config,
+        )
         result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
         if expected_result:
@@ -150,14 +156,17 @@ def test_06_invalid_config_format(package_to_image_placer_binary):
     remove_from_config_and_run(["target"], False)
     remove_from_config_and_run(["packages"], False)
     remove_from_config_and_run(["partition-numbers"], False)
-    remove_from_config_and_run(["overwrite"], True)
     remove_from_config_and_run(["no-clone"], True)
     remove_from_config_and_run(["log-path"], True)
-    remove_from_config_and_run(["target-directory"], True)
-    remove_from_config_and_run(["service-files"], True)
 
     create_config(
-        config, "Invalid path", img_in, [package_zip], partitions, no_clone=True, remove_from_config=["source"]
+        config,
+        "Invalid path",
+        img_in,
+        [create_package_config(package_zip)],
+        partitions,
+        no_clone=True,
+        remove_from_config=["source"],
     )
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
     assert result.returncode == 0

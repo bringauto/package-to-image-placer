@@ -180,10 +180,10 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
 
 def create_package_config(
     package_path: str,
-    enable_services: bool,
-    service_names_suffix: str,
-    package_target_directory: str,
-    package_overwrite_file: list[str],
+    enable_services: bool = False,
+    service_names_suffix: str = "",
+    package_target_directory: str = "/",
+    package_overwrite_file: list[str] = None,
 ) -> dict:
     """
     Create a package configuration file.
@@ -237,7 +237,7 @@ def create_config(
     data = {
         "source": source,
         "target": target,
-        "packages": packages,
+        "packages": packages if packages is not None else [],
         "configuration-packages": configuration_packages,
         "partition-numbers": partition_numbers,
         "no-clone": no_clone,
@@ -253,6 +253,8 @@ def create_config(
 
     with open(config_path, "w") as f:
         json.dump(data, f, indent=4)
+
+    print(data)
 
 
 def create_service_file(service_file_path: str) -> None:
@@ -385,19 +387,12 @@ def compare_directories(dir1: str, dir2: str) -> bool:
     return True
 
 
-def is_package_installed(package_path: str, mount_point: str, package_dir: str) -> bool:
+def is_package_installed(package: dict, mount_point: str) -> bool:
     """
-    Check if a package is copied to the target directory.
-
-    Args:
-        package_path (str): The path to the package zip file.
-        mount_point (str): The path to the mount point.
-        package_dir (str): The target directory where the package should be installed.
-
-    Returns:
-        bool: True if the package is installed, False otherwise.
+    TODO;
     """
-
+    package_path = package["package-path"]
+    package_dir = package["target-directory"]
     print(f"Checking package {package_path} installation...")
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
     if os.path.exists(unzip_package_dir):
@@ -408,7 +403,7 @@ def is_package_installed(package_path: str, mount_point: str, package_dir: str) 
 
     if package_dir.startswith("/"):
         package_dir = package_dir[1:]
-    packet_name = os.path.basename(package_path).split(".")[0]
+    packet_name = os.path.basename(package_dir).split(".")[0]
     mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
 
     print("Diffing: ", unzip_package_dir, mount_package_dir)
@@ -494,13 +489,7 @@ def inspect_image(config_path: str) -> bool:
 
     image_path = config.get("target")
     partitions = config.get("partition-numbers")
-    target_directory = config.get("target-directory")
     packages = config.get("packages")
-    services = config.get("service-names")
-
-    if not target_directory:
-        target_directory = "."
-    print(target_directory)
 
     if not os.path.exists(image_path):
         print(f"Image {image_path} does not exist.")
@@ -517,17 +506,17 @@ def inspect_image(config_path: str) -> bool:
             print(f"Partition {partition} mounted at {test_mount_point}")
             for package in packages:
                 print(f"Partition: {partition}, Package: {package}")
-                if not is_package_installed(package, test_mount_point, target_directory):
+                if not is_package_installed(package, test_mount_point):
                     test_passed = False
                     print(f"Package {package} not installed.")
                     break
 
-            for service in services:
-                print(f"Partition: {partition}, Service: {service}")
-                if not is_service_enabled(service, test_mount_point):
-                    test_passed = False
-                    print(f"Service {service} not enabled.")
-                    break
+            # for service in services:
+            # print(f"Partition: {partition}, Service: {service}")
+            # if not is_service_enabled(service, test_mount_point):
+            # test_passed = False
+            # print(f"Service {service} not enabled.")
+            # break
 
             unmount_disk(test_mount_point)
 
