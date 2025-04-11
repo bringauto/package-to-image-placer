@@ -78,7 +78,13 @@ func main() {
 
 	}
 
-	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(packages, "\n\t"), configuration.Config.PartitionNumbers)
+	// Create a slice of package paths from configuration.Config.Packages
+	var packagePaths []string
+	for _, pkg := range configuration.Config.Packages {
+		packagePaths = append(packagePaths, pkg.PackagePath)
+	}
+	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(packagePaths, "\n\t"), configuration.Config.PartitionNumbers)
+
 	if configuration.Config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")
 		return

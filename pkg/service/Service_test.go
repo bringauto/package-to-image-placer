@@ -37,8 +37,10 @@ func TestAddService_Success(t *testing.T) {
 		t.Fatalf("expected service to be enabled, got disabled")
 	}
 
-	os.Remove(filepath.Join(mountDir, "etc/systemd/system/multi-user.target.wants/valid.service"))
-	os.Remove(filepath.Join(mountDir, "etc/systemd/system/valid.service"))
+	t.Cleanup(func() {
+		os.Remove(filepath.Join(mountDir, "etc/systemd/system/multi-user.target.wants/valid.service"))
+		os.Remove(filepath.Join(mountDir, "etc/systemd/system/valid.service"))
+	})
 }
 
 func TestAddService_MissingRequiredFields(t *testing.T) {

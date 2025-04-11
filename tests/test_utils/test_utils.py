@@ -12,8 +12,16 @@ def remove_dir(dir_path: str) -> None:
     Args:
         dir_path (str): The path to the directory to remove.
     """
+    if not dir_path:
+        raise ValueError("Directory path is empty or None.")
+
     if not os.path.exists(dir_path):
         return
+
+    dri_path = os.path.abspath(dir_path)
+    if not "tests/test_data" in dri_path:
+        raise ValueError("Cannot remove test data directory.")
+
     subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
 
 
@@ -373,6 +381,10 @@ def compare_directories(dir1: str, dir2: str) -> bool:
     files1.sort()
     files2.sort()
 
+    if len(files1) != len(files2):
+        print(f"Number of files differ: {len(files1)} vs {len(files2)}")
+        return False
+
     for f1, f2 in zip(files1, files2):
         rc = subprocess.run(["diff", "-q", os.path.join(dir1, f1), os.path.join(dir2, f2)], check=True)
         if rc.returncode != 0:
@@ -403,9 +415,9 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
 
     if package_dir.startswith("/"):
         package_dir = package_dir[1:]
-    packet_name = os.path.basename(package_dir).split(".")[0]
+    packet_name = os.path.basename(package_path).split(".")[0]
     mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
-
+    print(package_dir, packet_name)
     print("Diffing: ", unzip_package_dir, mount_package_dir)
 
     return compare_directories(unzip_package_dir, mount_package_dir)
@@ -597,9 +609,10 @@ def run_package_to_image_placer(
     )
 
     try:
-        for char in send_to_stdin:
-            result.stdin.write(char + "\n")
-            result.stdin.flush()
+        if send_to_stdin is not None:
+            for char in send_to_stdin:
+                result.stdin.write(char + "\n")
+                result.stdin.flush()
 
     except Exception as e:
         print(f"Failed to send input to the process: {e}")
