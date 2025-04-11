@@ -98,8 +98,7 @@ def create_test_package(
 
     if create_symlinks:
         os.makedirs(f"{package_path}/symlinks")
-        for i in range(1, 6):
-            crete_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink_{i}")
+        crete_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink")
 
     for service in services:
         service_target_path = os.path.join(package_path, os.path.basename(service))
@@ -190,7 +189,7 @@ def create_package_config(
     package_path: str,
     enable_services: bool = False,
     service_names_suffix: str = "",
-    package_target_directory: str = "/",
+    target_directory: str = "/",
     package_overwrite_file: list[str] = None,
 ) -> dict:
     """
@@ -208,7 +207,7 @@ def create_package_config(
         "package-path": package_path,
         "enable-services": enable_services,
         "service-names-suffix": service_names_suffix,
-        "target-directory": package_target_directory,
+        "target-directory": target_directory,
         "overwrite-files": package_overwrite_file,
     }
 
@@ -545,9 +544,7 @@ def run_package_to_image_placer(
     target: str = None,
     config: str = None,
     no_clone: bool = None,
-    overwrite: bool = None,
     package_dir: str = None,
-    target_dir: str = None,
     log_path: str = ".",
     send_to_stdin: str = None,
     result_list: list = None,
@@ -586,14 +583,8 @@ def run_package_to_image_placer(
     if no_clone is not None:
         parameters.append(f"-no-clone={no_clone}")
 
-    if overwrite is not None:
-        parameters.append(f"-overwrite={overwrite}")
-
     if package_dir is not None:
         parameters.append(f"-package-dir={package_dir}")
-
-    if target_dir is not None:
-        parameters.append(f"-target-dir={target_dir}")
 
     if log_path is not None:
         parameters.append(f"-log-path={log_path}")
