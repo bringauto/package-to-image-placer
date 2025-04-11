@@ -2,7 +2,6 @@ import subprocess
 import os
 import shutil
 import json
-from time import sleep
 
 
 def remove_dir(dir_path: str) -> None:
@@ -18,9 +17,9 @@ def remove_dir(dir_path: str) -> None:
     if not os.path.exists(dir_path):
         return
 
-    dri_path = os.path.abspath(dir_path)
-    if not "tests/test_data" in dri_path:
-        raise ValueError("Cannot remove test data directory.")
+    dir_path = os.path.abspath(dir_path)
+    if "tests/test_data" not in dir_path:
+        raise ValueError("Cannot remove data outside of tests/test_data directory.")
 
     subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
 
@@ -45,7 +44,6 @@ def convert_size_to_bytes(size: str) -> int:
     Returns:
         int: The size in bytes.
     """
-    print(size)
     size_units = size[-2:].upper()
     size_value = int(size[:-2])
 
@@ -59,7 +57,7 @@ def convert_size_to_bytes(size: str) -> int:
         raise ValueError("Unsupported size unit. Please use KB, MB, or GB.")
 
 
-def crete_symlink(source: str, target: str) -> None:
+def create_symlink(source: str, target: str) -> None:
     """
     Create a symbolic link.
 
@@ -74,7 +72,7 @@ def crete_symlink(source: str, target: str) -> None:
 
 
 def create_test_package(
-    package_path: str, package_size: str, create_symlinks: bool = True, services: list[str] = []
+    package_path: str, package_size: str, create_symlinks: bool = True, services: list[str] = None
 ) -> None:
     """
     Create a test package with the specified size and contents.
@@ -98,7 +96,7 @@ def create_test_package(
 
     if create_symlinks:
         os.makedirs(f"{package_path}/symlinks")
-        crete_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink")
+        create_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink")
 
     for service in services:
         service_target_path = os.path.join(package_path, os.path.basename(service))
@@ -218,12 +216,12 @@ def create_config(
     config_path: str,
     source: str = "",
     target: str = "",
-    packages: list[dict] = [],
-    partition_numbers: list[int] = [],
-    configuration_packages: list[str] = [],
+    packages: list[dict] = None,
+    configuration_packages: list[str] = None,
+    partition_numbers: list[int] = None,
     no_clone: bool = False,
     log_path: str = "",
-    remove_from_config: list[str] = [],
+    remove_from_config: list[str] = None,
 ) -> None:
     """
     Create a configuration file for the package-to-image-placer.
@@ -245,13 +243,13 @@ def create_config(
         "source": source,
         "target": target,
         "packages": packages if packages is not None else [],
-        "configuration-packages": configuration_packages,
-        "partition-numbers": partition_numbers,
+        "configuration-packages": configuration_packages if configuration_packages is not None else [],
+        "partition-numbers": partition_numbers if partition_numbers is not None else [],
         "no-clone": no_clone,
         "log-path": log_path,
     }
 
-    for key in remove_from_config:
+    for key in remove_from_config or []:
         data.pop(key, None)
 
     if os.path.exists(config_path):
