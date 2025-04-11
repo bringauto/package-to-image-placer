@@ -78,7 +78,7 @@ func activateService(mountDir string, serviceFile string, packageConfig *configu
 		serviceDestFile = strings.TrimSuffix(serviceFile, ".service") + "-" + packageConfig.ServiceNameSuffix + ".service"
 	}
 
-	destPath := filepath.Join(mountDir, "etc/systemd/system", filepath.Base(serviceDestFile))
+	destPath := filepath.Join(mountDir, "/etc/systemd/system", filepath.Base(serviceDestFile))
 	symlinkPath := filepath.Join(mountDir, "/etc/systemd/system/multi-user.target.wants", filepath.Base(serviceDestFile))
 
 	err := checkAndHandleServiceFileOverwrite(destPath, symlinkPath, serviceFile, mountDir, packageConfig)
