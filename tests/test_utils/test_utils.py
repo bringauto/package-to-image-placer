@@ -178,16 +178,43 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
     return image_path
 
 
+def create_package_config(
+    package_path: str,
+    enable_services: bool,
+    service_names_suffix: str,
+    package_target_directory: str,
+    package_overwrite_file: list[str],
+) -> dict:
+    """
+    Create a package configuration file.
+    Args:
+        package_path (str): The path to the package zip file.
+        enable_services (bool): Whether to enable services.
+        service_names_suffix (str): The suffix for the service names.
+        package_target_directory (str): The target directory for the package.
+        package_overwrite_file (list[str]): A list of files to overwrite in the package.
+    Returns:
+        dict: The package configuration.
+    """
+    package_config = {
+        "package-path": package_path,
+        "enable-services": enable_services,
+        "service-names-suffix": service_names_suffix,
+        "target-directory": package_target_directory,
+        "overwrite-files": package_overwrite_file,
+    }
+
+    return package_config
+
+
 def create_config(
     config_path: str,
     source: str = "",
     target: str = "",
-    packages: list[str] = [],
+    packages: list[dict] = [],
     partition_numbers: list[int] = [],
-    service_names: list[str] = [],
-    target_directory: str = "/",
+    configuration_packages: list[str] = [],
     no_clone: bool = False,
-    overwrite: bool = False,
     log_path: str = "",
     remove_from_config: list[str] = [],
 ) -> None:
@@ -211,11 +238,9 @@ def create_config(
         "source": source,
         "target": target,
         "packages": packages,
+        "configuration-packages": configuration_packages,
         "partition-numbers": partition_numbers,
-        "service-names": service_names,
-        "target-directory": target_directory,
         "no-clone": no_clone,
-        "overwrite": overwrite,
         "log-path": log_path,
     }
 

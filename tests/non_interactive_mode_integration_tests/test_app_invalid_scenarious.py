@@ -8,7 +8,7 @@ from test_utils.test_utils import (
 )
 
 
-def test_write_one_big_package(package_to_image_placer_binary):
+def test_01_write_one_big_package(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the package is bigger than the image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -29,7 +29,7 @@ def test_write_one_big_package(package_to_image_placer_binary):
     assert not os.path.exists(img_out)
 
 
-def test_write_two_big_packages(package_to_image_placer_binary):
+def test_02_write_two_big_packages(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the sum of packages is bigger than the image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -52,7 +52,7 @@ def test_write_two_big_packages(package_to_image_placer_binary):
     assert not os.path.exists(img_out)
 
 
-def test_write_one_package_to_small_partition(package_to_image_placer_binary):
+def test_03_write_one_package_to_small_partition(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the package is bigger than the partition"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
@@ -73,7 +73,7 @@ def test_write_one_package_to_small_partition(package_to_image_placer_binary):
     assert not os.path.exists(img_out)
 
 
-def test_write_multiple_packages_to_partition(package_to_image_placer_binary):
+def test_04_write_multiple_packages_to_partition(package_to_image_placer_binary):
     """Tests if the package_to_image_placer will fail when the sum of packages is bigger than the partition"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
