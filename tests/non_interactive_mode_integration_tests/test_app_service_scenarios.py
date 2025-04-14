@@ -233,7 +233,7 @@ def test_07_package_service_with_suffix(package_to_image_placer_binary):
             create_package_config(
                 package_zip,
                 True,
-                service_names_suffix="test",
+                service_name_suffix="test",
             )
         ],
         partitions,
@@ -250,4 +250,35 @@ def test_08_package_with_service_with_suffix_starting_with_hyphen(
     package_to_image_placer_binary,
 ):
     """Creates package with service file with suffix starting with hyphen. It should crash because it's not to start service file with hyphen"""
-    return
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    service = "test_data/service.service"
+    partitions = [1]
+
+    create_service_file(service)
+    create_test_package(package, "10KB", services=[service])
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [
+            create_package_config(
+                package_zip,
+                True,
+                service_name_suffix="-test",
+            )
+        ],
+        partitions,
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 1
+
+    assert not os.path.exists(img_out)

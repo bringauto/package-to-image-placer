@@ -186,7 +186,7 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
 def create_package_config(
     package_path: str,
     enable_services: bool = False,
-    service_names_suffix: str = "",
+    service_name_suffix: str = "",
     target_directory: str = "/",
     overwrite_file: list[str] = None,
 ) -> dict:
@@ -195,7 +195,7 @@ def create_package_config(
     Args:
         package_path (str): The path to the package zip file.
         enable_services (bool): Whether to enable services.
-        service_names_suffix (str): The suffix for the service names.
+        service_name_suffix (str): The suffix for the service names.
         package_target_directory (str): The target directory for the package.
         overwrite_file (list[str]): A list of files to overwrite in the package.
     Returns:
@@ -204,7 +204,7 @@ def create_package_config(
     package_config = {
         "package-path": package_path,
         "enable-services": enable_services,
-        "service-names-suffix": service_names_suffix,
+        "service-name-suffix": service_name_suffix,
         "target-directory": target_directory,
         "overwrite-files": overwrite_file if overwrite_file is not None else [],
     }
@@ -433,8 +433,8 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
 
     if package.get("enable-services"):
 
-        if package["service-names-suffix"] != "":
-            service = ".".join(service.split(".")[:-1]) + "-" + package["service-names-suffix"] + ".service"
+        if package["service-name-suffix"] != "":
+            service = ".".join(service.split(".")[:-1]) + "-" + package["service-name-suffix"] + ".service"
 
         print(f"Checking if service {service} is enabled...")
 
