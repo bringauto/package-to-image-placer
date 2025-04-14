@@ -103,3 +103,27 @@ def test_04_write_multiple_packages_to_partition(package_to_image_placer_binary)
 
     assert result.returncode == 1
     assert not os.path.exists(img_out)
+
+
+def test_05_write_package_with_invalid_overwrite(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will fail when attempting to write a package with an invalid overwrite file"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    create_config(
+        config, img_in, img_out, [create_package_config(package_zip, overwrite_file=["/nonexisting_file"])], partitions
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 1
+
+    assert not os.path.exists(img_out)

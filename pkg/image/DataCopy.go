@@ -27,7 +27,7 @@ const timeout = 60 * time.Second
 func CopyPackagesToImagePartitions() error {
 	for _, partition := range configuration.Config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
-		err := MountPartitionAndCopyPackages(partition)
+		err := MountPartitionAndCopyPackages(partition, partition == configuration.Config.PartitionNumbers[0])
 		if err != nil {
 			return err
 		}
@@ -35,10 +35,10 @@ func CopyPackagesToImagePartitions() error {
 	return nil
 }
 
-func CopyPackageActivateService(mountDir string, packageConfig *configuration.PackageConfig) error {
+func CopyPackageActivateService(mountDir string, packageConfig *configuration.PackageConfig, firstPartition bool) error {
 	var targetDirectoryFullPath string
 	var err error
-	if configuration.Config.InteractiveRun && packageConfig.IsStandardPackage {
+	if configuration.Config.InteractiveRun && packageConfig.IsStandardPackage && firstPartition {
 		targetDirectoryFullPath, err = user.SelectTargetDirectory(mountDir, mountDir, packageConfig.PackagePath)
 		if err != nil {
 			return err
@@ -100,7 +100,7 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 
 // MountPartitionAndCopyPackages mounts the specified partition, copies the package to it, and activates any service files found in the package.
 // It handles signals for unmounting the partition and ensures the directory is populated before proceeding.
-func MountPartitionAndCopyPackages(partitionNumber int) error {
+func MountPartitionAndCopyPackages(partitionNumber int, firstPartition bool) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -146,7 +146,7 @@ func MountPartitionAndCopyPackages(partitionNumber int) error {
 
 	for i := range configuration.Config.Packages {
 		configuration.Config.Packages[i].IsStandardPackage = true
-		err = CopyPackageActivateService(mountDir, &configuration.Config.Packages[i])
+		err = CopyPackageActivateService(mountDir, &configuration.Config.Packages[i], firstPartition)
 		if err != nil {
 			return fmt.Errorf("error while copying package: %v", err)
 		}
@@ -155,7 +155,7 @@ func MountPartitionAndCopyPackages(partitionNumber int) error {
 	for i := range configuration.Config.ConfigurationPackages {
 		tmpPackage.PackagePath = configuration.Config.ConfigurationPackages[i].PackagePath
 		tmpPackage.OverwriteFiles = configuration.Config.ConfigurationPackages[i].OverwriteFiles
-		err = CopyPackageActivateService(mountDir, &tmpPackage)
+		err = CopyPackageActivateService(mountDir, &tmpPackage, firstPartition)
 		if err != nil {
 			return fmt.Errorf("error while copying configuration package: %v", err)
 		}
@@ -173,6 +173,11 @@ func handleArchive(packageConfig *configuration.PackageConfig, mountDir string, 
 		return "", fmt.Errorf("failed to open zip file: %v", err)
 	}
 	defer zipReader.Close()
+
+	err = findAllFilesInZip(&zipReader.Reader, packageConfig.OverwriteFiles)
+	if err != nil {
+		return "", err
+	}
 
 	packageSize := getArchiveSize(zipReader)
 	err = checkFreeSize(mountDir, packageSize)
@@ -236,10 +241,34 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	return nil
 }
 
+func findAllFilesInZip(zipReader *zip.Reader, targetFileNames []string) error {
+	fileMap := make(map[string]*zip.File, len(zipReader.File))
+	for _, file := range zipReader.File {
+		if !file.FileInfo().IsDir() {
+			fileMap["/"+file.Name] = file
+		}
+	}
+
+	for _, targetFileName := range targetFileNames {
+		if _, exists := fileMap[targetFileName]; !exists {
+			return fmt.Errorf("file %s not found in the zip archive %s", targetFileName, zipReader.Comment)
+		}
+	}
+	return nil
+}
+
 // decompressZipArchiveAndReturnService extracts the files from the zip archive to the target directory.
 // It returns a list of service files found in the archive.
 func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, mountDir string, packageConfig *configuration.PackageConfig) (string, error) {
 	serviceFile := ""
+
+	// Check if the file is in the zip archive
+	for _, file := range zipReader.File {
+		if file.Name == packageConfig.PackagePath {
+			log.Printf("File %s found in the zip archive", file.Name)
+			break
+		}
+	}
 
 	for _, file := range zipReader.File {
 		targetFilePath := filepath.Join(targetDir, file.Name)
