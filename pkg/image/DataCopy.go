@@ -22,9 +22,9 @@ import (
 
 const timeout = 60 * time.Second
 
-// CopyPackageToImagePartitions copies the specified packages to the specified partitions in the configuration.
+// CopyPackagesToImagePartitions copies the specified packages to the specified partitions in the configuration.
 // It iterates over each partition and package, calling MountPartitionAndCopyPackages for each combination.
-func CopyPackageToImagePartitions() error {
+func CopyPackagesToImagePartitions() error {
 	for _, partition := range configuration.Config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
 		err := MountPartitionAndCopyPackages(partition)
@@ -38,7 +38,7 @@ func CopyPackageToImagePartitions() error {
 func CopyPackageActivateService(mountDir string, packageConfig *configuration.PackageConfig) error {
 	var targetDirectoryFullPath string
 	var err error
-	if configuration.Config.InteractiveRun {
+	if configuration.Config.InteractiveRun && packageConfig.IsStandardPackage {
 		targetDirectoryFullPath, err = user.SelectTargetDirectory(mountDir, mountDir, packageConfig.PackagePath)
 		if err != nil {
 			return err
@@ -59,6 +59,11 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath)
 	if err != nil {
 		return err
+	}
+
+	// Configuration packages are not allowed to have services
+	if !packageConfig.IsStandardPackage {
+		return nil
 	}
 
 	if serviceFile == "" {
@@ -140,12 +145,22 @@ func MountPartitionAndCopyPackages(partitionNumber int) error {
 	}()
 
 	for i := range configuration.Config.Packages {
+		configuration.Config.Packages[i].IsStandardPackage = true
 		err = CopyPackageActivateService(mountDir, &configuration.Config.Packages[i])
 		if err != nil {
 			return fmt.Errorf("error while copying package: %v", err)
 		}
 	}
-
+	tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
+	for i := range configuration.Config.ConfigurationPackages {
+		tmpPackage.PackagePath = configuration.Config.ConfigurationPackages[i].PackagePath
+		tmpPackage.OverwriteFiles = configuration.Config.ConfigurationPackages[i].OverwriteFiles
+		err = CopyPackageActivateService(mountDir, &tmpPackage)
+		if err != nil {
+			return fmt.Errorf("error while copying configuration package: %v", err)
+		}
+		configuration.Config.ConfigurationPackages[i].OverwriteFiles = tmpPackage.OverwriteFiles
+	}
 	return nil
 }
 
@@ -164,7 +179,9 @@ func handleArchive(packageConfig *configuration.PackageConfig, mountDir string, 
 	if err != nil {
 		return "", err
 	}
-	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
+
+	targetArchiveDir := helper.GetTargetArchiveDirName(targetDir, archivePath, packageConfig.IsStandardPackage)
+
 	os.MkdirAll(targetArchiveDir, os.ModePerm)
 	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, mountDir, packageConfig)
 	if err != nil {

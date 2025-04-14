@@ -130,7 +130,7 @@ func main() {
 		}
 	}
 
-	err = image.CopyPackageToImagePartitions()
+	err = image.CopyPackagesToImagePartitions()
 	if err != nil {
 		helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
 		log.Fatalf("Error: %s\n", err)

@@ -16,6 +16,7 @@ type PackageConfig struct {
 	ServiceNameSuffix string   `json:"service-name-suffix"`
 	TargetDirectory   string   `json:"target-directory"`
 	OverwriteFiles    []string `json:"overwrite-files"`
+	IsStandardPackage bool     `json:"-"`
 }
 
 type ConfigurationPackage struct {
