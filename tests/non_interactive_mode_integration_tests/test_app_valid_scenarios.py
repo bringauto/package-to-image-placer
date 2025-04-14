@@ -224,7 +224,7 @@ def test_08_write_one_package_try_different_overwrite_flag(package_to_image_plac
         img_out_2,
         [
             create_package_config(
-                package_zip, package_overwrite_file=["/normal_package/test_file", "/normal_package/symlinks/symlink"]
+                package_zip, overwrite_file=["/normal_package/test_file", "/normal_package/symlinks/symlink"]
             )
         ],
         partitions,

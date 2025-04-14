@@ -98,7 +98,7 @@ def create_test_package(
         os.makedirs(f"{package_path}/symlinks")
         create_symlink(f"{package_path}/test_file", f"{package_path}/symlinks/symlink")
 
-    for service in services:
+    for service in services or []:
         service_target_path = os.path.join(package_path, os.path.basename(service))
         shutil.copy(service, service_target_path)
 
@@ -188,7 +188,7 @@ def create_package_config(
     enable_services: bool = False,
     service_names_suffix: str = "",
     target_directory: str = "/",
-    package_overwrite_file: list[str] = None,
+    overwrite_file: list[str] = None,
 ) -> dict:
     """
     Create a package configuration file.
@@ -197,7 +197,7 @@ def create_package_config(
         enable_services (bool): Whether to enable services.
         service_names_suffix (str): The suffix for the service names.
         package_target_directory (str): The target directory for the package.
-        package_overwrite_file (list[str]): A list of files to overwrite in the package.
+        overwrite_file (list[str]): A list of files to overwrite in the package.
     Returns:
         dict: The package configuration.
     """
@@ -206,7 +206,7 @@ def create_package_config(
         "enable-services": enable_services,
         "service-names-suffix": service_names_suffix,
         "target-directory": target_directory,
-        "overwrite-files": package_overwrite_file,
+        "overwrite-files": overwrite_file if overwrite_file is not None else [],
     }
 
     return package_config
@@ -217,8 +217,8 @@ def create_config(
     source: str = "",
     target: str = "",
     packages: list[dict] = None,
-    configuration_packages: list[str] = None,
     partition_numbers: list[int] = None,
+    configuration_packages: list[str] = None,
     no_clone: bool = False,
     log_path: str = "",
     remove_from_config: list[str] = None,
@@ -230,12 +230,10 @@ def create_config(
         config_path (str): The path to the configuration file to create.
         source (str): The path to the source image.
         target (str): The path to the target image.
-        packages (list[str]): A list of package zip files to install.
-        partition_numbers (list[int]): A list of partition numbers to install the packages to.
-        service_names (list[str]): A list of service files to enable.
-        target_directory (str): The target directory to install the packages to.
+        packages (list[dict]): A list of package configurations.
+        configuration_packages (list[str]): A list of configuration packages.
+        partition_numbers (list[int]): A list of partition numbers.
         no_clone (bool): Whether to clone the source image.
-        overwrite (bool): Whether to overwrite the target image if it already exists.
         log_path (str): The path to the log file.
         remove_from_config (list[str]): A list of keys to remove from the configuration.
     """
@@ -417,7 +415,32 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
     print(package_dir, packet_name)
     print("Diffing: ", unzip_package_dir, mount_package_dir)
 
-    return compare_directories(unzip_package_dir, mount_package_dir)
+    if not compare_directories(unzip_package_dir, mount_package_dir):
+        return False
+
+    service_files = [
+        os.path.join(root, file)
+        for root, _, files in os.walk(unzip_package_dir)
+        for file in files
+        if file.endswith(".service")
+    ]
+
+    if len(service_files) != 1:
+        print(f"Found {len(service_files)} service files in the package. And there should be only one.")
+        return False
+
+    service = service_files[0]
+
+    if package.get("enable-services"):
+
+        if package["service-names-suffix"] != "":
+            service = ".".join(service.split(".")[:-1]) + "-" + package["service-names-suffix"] + ".service"
+
+        print(f"Checking if service {service} is enabled...")
+
+        return is_service_enabled(service, mount_point)
+
+    return True
 
 
 def is_service_enabled(service_name: str, mount_point: str) -> bool:
@@ -479,6 +502,7 @@ def is_service_enabled(service_name: str, mount_point: str) -> bool:
             print(f"Service {service_name} is missing required fields: {required_fields}")
             return False
 
+    print(f"Service {service_name} is enabled and properly configured.")
     return True
 
 
@@ -517,15 +541,8 @@ def inspect_image(config_path: str) -> bool:
                 print(f"Partition: {partition}, Package: {package}")
                 if not is_package_installed(package, test_mount_point):
                     test_passed = False
-                    print(f"Package {package} not installed.")
+                    print(f"Package {package} not properly installed.")
                     break
-
-            # for service in services:
-            # print(f"Partition: {partition}, Service: {service}")
-            # if not is_service_enabled(service, test_mount_point):
-            # test_passed = False
-            # print(f"Service {service} not enabled.")
-            # break
 
             unmount_disk(test_mount_point)
 
