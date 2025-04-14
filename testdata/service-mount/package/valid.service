@@ -1,0 +1,14 @@
+[Service]
+Restart=always
+Type=simple
+ExecStart=/package/dir-with-executable/bin/executable --argument=/original-path/argument --argument=/package/dir-with-executable/argument
+RestartSec=10
+User=root
+WorkingDirectory=/package/dir-with-executable/
+
+[Install]
+WantedBy=multi-user.target
+
+[Unit]
+After=network.target
+Description=Valid Service
