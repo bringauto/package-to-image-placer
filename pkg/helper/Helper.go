@@ -74,6 +74,14 @@ func RemoveInvalidOutputImage(outputImage string, no_clone bool) error {
 	return nil
 }
 
+// GetMountDir returns the mount directory for the given image path.
+func GetTargetArchiveDirName(targetDir string, archivePath string, standardPackage bool) string {
+	if standardPackage {
+		return filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
+	}
+	return targetDir
+}
+
 // SplitStringPreserveSubstrings splits a string into substrings while preserving substrings in quotes.
 // e.g. "'a b' c" -> ["'a b'", "c"]
 func SplitStringPreserveSubstrings(input string) []string {
@@ -92,6 +100,10 @@ func RemoveMountDirAndPackageName(path string, mountDir string, packageDir strin
 	path = strings.TrimPrefix(path, "/")
 	packageName := strings.TrimSuffix(filepath.Base(packagePath), ".zip")
 	path = strings.TrimPrefix(path, packageName)
+
+	if path[0] != '/' {
+		path = "/" + path
+	}
 
 	return path
 }
