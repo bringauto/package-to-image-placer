@@ -78,13 +78,13 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 			if err != nil {
 				return fmt.Errorf("error reading service name suffix: %v", err)
 			}
-			if strings.HasPrefix(packageConfig.ServiceNameSuffix, "-") {
-				return fmt.Errorf("service name suffix should not start with a hyphen")
-			}
 		}
 	}
 
 	if packageConfig.EnableServices {
+		if strings.HasPrefix(packageConfig.ServiceNameSuffix, "-") {
+			return fmt.Errorf("service name suffix should not start with a hyphen")
+		}
 		err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, packageConfig)
 		if err != nil {
 			return fmt.Errorf("error while activating service: %v", err)
