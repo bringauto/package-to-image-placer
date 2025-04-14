@@ -39,8 +39,9 @@ func main() {
 	newConfigFilePath := ""
 	var packages []string
 	if configuration.Config.InteractiveRun {
-		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir)
-		log.Printf("Selected packages: %v\n", packages)
+		header_base := "Choose standard package to copy."
+		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
+		log.Printf("Selected standard packages: %v\n", packages)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 			return
@@ -48,8 +49,25 @@ func main() {
 		for _, pkg := range packages {
 			packageConfig := configuration.PackageConfig{PackagePath: pkg}
 			configuration.Config.Packages = append(configuration.Config.Packages, packageConfig)
-
 		}
+
+		header_base = "Choose configuration package to copy."
+		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
+		log.Printf("Selected configuration packages: %v\n", packages)
+		if err != nil {
+			log.Printf("Error: %s\n", err)
+			return
+		}
+		for _, pkg := range packages {
+			packageConfig := configuration.ConfigurationPackage{PackagePath: pkg}
+			configuration.Config.ConfigurationPackages = append(configuration.Config.ConfigurationPackages, packageConfig)
+		}
+
+		if len(configuration.Config.Packages) == 0 && len(configuration.Config.ConfigurationPackages) == 0 {
+			log.Printf("No packages selected. Exiting...\n")
+			return
+		}
+
 		imagePath := ""
 		if configuration.Config.NoClone {
 			imagePath = configuration.Config.Target
@@ -78,12 +96,17 @@ func main() {
 
 	}
 
-	// Create a slice of package paths from configuration.Config.Packages
-	var packagePaths []string
+	// Create a slice of package paths from configuration.Config.Packages and configuration.Config.ConfigurationPackages
+	var standardPackagePaths []string
+	var configurationPackagePaths []string
+
 	for _, pkg := range configuration.Config.Packages {
-		packagePaths = append(packagePaths, pkg.PackagePath)
+		standardPackagePaths = append(standardPackagePaths, pkg.PackagePath)
 	}
-	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(packagePaths, "\n\t"), configuration.Config.PartitionNumbers)
+	for _, pkg := range configuration.Config.ConfigurationPackages {
+		configurationPackagePaths = append(configurationPackagePaths, pkg.PackagePath)
+	}
+	log.Printf("Standard packages: \n\t%v\nConfiguration packages: \n\t%v\nwill be copied to partitions: %v\n", strings.Join(standardPackagePaths, "\n\t"), strings.Join(configurationPackagePaths, "\n\t"), configuration.Config.PartitionNumbers)
 
 	if configuration.Config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")

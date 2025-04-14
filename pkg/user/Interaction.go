@@ -27,15 +27,14 @@ const colorReset = "\033[0m"
 // SelectFilesInDir allows the user to select multiple files in a directory.
 // It repeatedly prompts the user to select files until they choose to stop.
 // Returns a slice of selected file paths.
-func SelectFilesInDir(dir string) ([]string, error) {
+func SelectFilesInDir(dir string, header_base string) ([]string, error) {
 	var selectedFiles []string
 	chooseAnotherFile := true
 	for chooseAnotherFile {
-		selectedFile, err := SelectFile(dir, selectedFiles)
+		selectedFile, err := SelectFile(dir, selectedFiles, header_base)
 		if err != nil {
 			if err.Error() == "abort" {
-				fmt.Println("User aborted")
-				break
+				return selectedFiles, nil
 			}
 			return nil, err
 		}
@@ -78,7 +77,7 @@ func getDirsAndZips(dir string) ([]string, error) {
 // SelectFile allows the user to select a file from the specified directory.
 // It uses a fuzzy finder to present the files and directories to the user.
 // Returns the selected file path.
-func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
+func SelectFile(dir string, alreadySelectedItems []string, header_base string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
@@ -100,7 +99,7 @@ func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
 		}
 	}
 
-	header := "Choose file to copy. Press esc to quit.\nCurrent directory: " + colorBlue + absDir + colorReset + "\n"
+	header := header_base + " Press esc to quit.\nCurrent directory: " + colorBlue + absDir + colorReset + "\n"
 
 	selectedFileIndex, err := fuzzySelectOne(header, displayItems)
 	if err != nil {
@@ -110,7 +109,7 @@ func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
 	selectedFile := strings.TrimSpace(files[selectedFileIndex])
 	if isSelectedDir(selectedFile) {
 		newDir := filepath.Join(dir, selectedFile)
-		return SelectFile(newDir, alreadySelectedItems)
+		return SelectFile(newDir, alreadySelectedItems, header_base)
 	}
 	selectedFile = filepath.Join(absDir, selectedFile)
 	return selectedFile, nil
@@ -317,7 +316,6 @@ func GetUserConfirmation(message string) bool {
 // SetUpCommandline sets up the command line for user interaction.
 // It configures the terminal to not cache characters.
 func SetUpCommandline() {
-	log.Printf("Setting up command line...")
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Printf("Warning: /dev/tty not available, skipping terminal setup")
 		return
@@ -329,7 +327,6 @@ func SetUpCommandline() {
 
 // CleanUpCommandLine reverts the terminal settings to their default state.
 func CleanUpCommandLine() {
-	log.Printf("Cleaning up command line...")
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Printf("Warning: /dev/tty not available, skipping terminal cleanup")
 		return
