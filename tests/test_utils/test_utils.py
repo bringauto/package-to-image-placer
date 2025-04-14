@@ -418,6 +418,9 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
     if not compare_directories(unzip_package_dir, mount_package_dir):
         return False
 
+    if not package.get("enable-services"):
+        return True
+
     service_files = [
         os.path.join(root, file)
         for root, _, files in os.walk(unzip_package_dir)
@@ -426,7 +429,7 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
     ]
 
     if len(service_files) != 1:
-        print(f"Found {len(service_files)} service files in the package. And there should be only one.")
+        print(f"Found {len(service_files)} service files in the package. And there should be one.")
         return False
 
     service = service_files[0]
