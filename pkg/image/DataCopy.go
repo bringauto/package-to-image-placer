@@ -210,6 +210,7 @@ func mountPartition(targetImageName string, partitionNumber int, mountDir string
 
 // unmount unmounts the specified mount directory using guestunmount.
 func unmount(mountDir string) {
+	unix.Sync()
 	log.Printf("Unmounting partition")
 	helper.RunCommand("guestunmount "+mountDir, true)
 	waitUntilDirectoryIsEmpty(mountDir, timeout)
@@ -380,20 +381,17 @@ func waitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error 
 
 // waitUntilDirectoryIsEmpty waits until the directory is empty or the timeout is reached.
 // Use to make sure directory is unmounted before proceeding.
-func waitUntilDirectoryIsEmpty(dirPath string, timeout time.Duration) {
+func waitUntilDirectoryIsEmpty(mountDir string, timeout time.Duration) {
 	start := time.Now()
 	for {
-		populated, err := isDirectoryPopulated(dirPath)
-		if err != nil {
-			log.Printf("Error checking directory: %v", err)
-		}
-		if !populated {
+		if unix.Unmount(mountDir, 0) == nil {
 			return
 		}
 		if time.Since(start) > timeout {
-			log.Printf("directory %s is not empty within the timeout period. Continuing", dirPath)
+			log.Printf("directory %s is not empty within the timeout period. Continuing", mountDir)
+			return
 		}
-		time.Sleep(100 * time.Millisecond) // Adjust the sleep duration as needed
+		time.Sleep(1 * time.Second) // Adjust the sleep duration as needed
 	}
 }
 
