@@ -375,12 +375,23 @@ func getPartitionInfo(imagePath string) ([]partitionInfo, error) {
 		fs, err := disk.GetFilesystem(partitionNumber)
 		if err != nil {
 			log.Printf("Error getting filesystem on partition %d: %s\n", partitionNumber, err)
+			fs = nil
 		}
 		partition := partitionInfo{
 			partitionNumber: partitionNumber,
 			partitionUUID:   p.UUID(),
-			filesystemType:  typeToString(fs.Type()),
-			filesystemLabel: fs.Label(),
+			filesystemType: func() string {
+				if fs != nil {
+					return typeToString(fs.Type())
+				}
+				return "Unknown"
+			}(),
+			filesystemLabel: func() string {
+				if fs != nil {
+					return fs.Label()
+				}
+				return "Unknown"
+			}(),
 		}
 		partitions = append(partitions, partition)
 	}
