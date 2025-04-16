@@ -21,6 +21,8 @@ import (
 )
 
 const timeout = 60 * time.Second
+const mountMaxRetries = 3
+const mountRetryDelay = 2 * time.Second
 
 // CopyPackagesToImagePartitions copies the specified packages to the specified partitions in the configuration.
 // It iterates over each partition and package, calling MountPartitionAndCopyPackages for each combination.
@@ -199,9 +201,17 @@ func handleArchive(packageConfig *configuration.PackageConfig, mountDir string, 
 // It sends any errors encountered to the provided error channel.
 func mountPartition(targetImageName string, partitionNumber int, mountDir string, errChan chan string) chan string {
 	log.Printf("Mounting partition to %s", mountDir)
-	// TODO set userId in config??
-	cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
-	_, err := helper.RunCommand(cmd, false)
+	var err error
+	for range mountMaxRetries {
+		cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
+		_, err = helper.RunCommand(cmd, false)
+		if err == nil {
+			break
+		}
+		log.Printf("Error mounting partition %d: %v. Retrying in %v...", partitionNumber, err, mountRetryDelay)
+		time.Sleep(mountRetryDelay)
+	}
+
 	if err != nil {
 		errChan <- err.Error()
 	}
@@ -210,10 +220,12 @@ func mountPartition(targetImageName string, partitionNumber int, mountDir string
 
 // unmount unmounts the specified mount directory using guestunmount.
 func unmount(mountDir string) {
-	unix.Sync()
+	syscall.Sync()
 	log.Printf("Unmounting partition")
 	helper.RunCommand("guestunmount "+mountDir, true)
-	waitUntilDirectoryIsEmpty(mountDir, timeout)
+
+	waitUntilDirectoryIsUnmounted(mountDir, timeout)
+	time.Sleep(time.Second) // Give it a moment to clear
 }
 
 // getArchiveSize calculates the total uncompressed size of the files in the zip archive.
@@ -379,18 +391,27 @@ func waitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error 
 	}
 }
 
-// waitUntilDirectoryIsEmpty waits until the directory is empty or the timeout is reached.
+// waitUntilDirectoryIsUnmounted waits until the directory is empty or the timeout is reached.
 // Use to make sure directory is unmounted before proceeding.
-func waitUntilDirectoryIsEmpty(mountDir string, timeout time.Duration) {
+func waitUntilDirectoryIsUnmounted(mountDir string, timeout time.Duration) {
 	start := time.Now()
+	log.Print("Waiting for directory to be empty...")
 	for {
-		if unix.Unmount(mountDir, 0) == nil {
+		ls_output, err := helper.RunCommand("ls "+mountDir, true)
+		if err != nil {
+			log.Printf("Error checking mountpoint: %v", err)
 			return
 		}
+
+		if ls_output == "" {
+			return
+		}
+
 		if time.Since(start) > timeout {
 			log.Printf("directory %s is not empty within the timeout period. Continuing", mountDir)
 			return
 		}
+		log.Print("Directory is not empty, waiting...")
 		time.Sleep(1 * time.Second) // Adjust the sleep duration as needed
 	}
 }
