@@ -5,7 +5,7 @@ from test_utils.test_utils import (
     create_image,
     make_image_mountable,
     create_config,
-    create_package_config,
+    create_normal_package_config,
 )
 
 
@@ -22,7 +22,7 @@ def test_01_write_one_big_package(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [create_package_config(package_zip)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_zip)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -49,7 +49,7 @@ def test_02_write_two_big_packages(package_to_image_placer_binary):
         config,
         img_in,
         img_out,
-        [create_package_config(package_1 + ".zip"), create_package_config(package_2 + ".zip")],
+        [create_normal_package_config(package_1 + ".zip"), create_normal_package_config(package_2 + ".zip")],
         partitions,
     )
 
@@ -72,7 +72,7 @@ def test_03_write_one_package_to_small_partition(package_to_image_placer_binary)
     create_image(img_in, "20MB", 2)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [create_package_config(package_zip)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_zip)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -96,7 +96,7 @@ def test_04_write_multiple_packages_to_partition(package_to_image_placer_binary)
     make_image_mountable(img_in)
 
     create_config(
-        config, img_in, img_out, [create_package_config(package + ".zip") for package in packages], partitions
+        config, img_in, img_out, [create_normal_package_config(package + ".zip") for package in packages], partitions
     )
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
@@ -119,7 +119,11 @@ def test_05_write_package_with_invalid_overwrite(package_to_image_placer_binary)
     make_image_mountable(img_in)
 
     create_config(
-        config, img_in, img_out, [create_package_config(package_zip, overwrite_file=["/nonexisting_file"])], partitions
+        config,
+        img_in,
+        img_out,
+        [create_normal_package_config(package_zip, overwrite_file=["/nonexisting_file"])],
+        partitions,
     )
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)

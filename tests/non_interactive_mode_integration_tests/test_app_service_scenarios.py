@@ -8,7 +8,7 @@ from test_utils.test_utils import (
     create_config,
     inspect_image,
     create_service_file,
-    create_package_config,
+    create_normal_package_config,
 )
 
 
@@ -27,7 +27,7 @@ def test_01_write_package_with_service(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [create_package_config(package_zip, True)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_zip, True)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -53,7 +53,7 @@ def test_02_write_package_with_services(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [create_package_config(package_zip, True)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_zip, True)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -84,8 +84,8 @@ def test_03_write_packages_with_services_with_override(package_to_image_placer_b
         img_in,
         img_out,
         [
-            create_package_config(package1_zip, True),
-            create_package_config(package2_zip, True, overwrite_file=["/normal_package2/service1.service"]),
+            create_normal_package_config(package1_zip, True),
+            create_normal_package_config(package2_zip, True, overwrite_file=["/normal_package2/service1.service"]),
         ],
         partitions,
     )
@@ -119,8 +119,8 @@ def test_04_write_packages_with_services_without_override(package_to_image_place
         img_in,
         img_out,
         [
-            create_package_config(package1_zip, True),
-            create_package_config(package2_zip, True),
+            create_normal_package_config(package1_zip, True),
+            create_normal_package_config(package2_zip, True),
         ],
         partitions,
     )
@@ -151,7 +151,7 @@ def test_05_write_multiple_packages_with_services_to_single_dir(package_to_image
         create_config(
             config,
             target=img_in_out,
-            packages=[create_package_config(package + ".zip", True, target_directory=target_directory)],
+            packages=[create_normal_package_config(package + ".zip", True, target_directory=target_directory)],
             partition_numbers=partitions,
             no_clone=True,
         )
@@ -163,7 +163,8 @@ def test_05_write_multiple_packages_with_services_to_single_dir(package_to_image
         config,
         target=img_in_out,
         packages=[
-            create_package_config(package + ".zip", True, target_directory=target_directory) for package in packages
+            create_normal_package_config(package + ".zip", True, target_directory=target_directory)
+            for package in packages
         ],
         partition_numbers=partitions,
     )
@@ -190,7 +191,7 @@ def test_06_write_multiple_packages_with_services_to_multiple_dirs(package_to_im
         create_config(
             config,
             target=img_in_out,
-            packages=[create_package_config(package + ".zip", True, target_directory=target_directory)],
+            packages=[create_normal_package_config(package + ".zip", True, target_directory=target_directory)],
             partition_numbers=partitions,
             no_clone=True,
         )
@@ -202,7 +203,7 @@ def test_06_write_multiple_packages_with_services_to_multiple_dirs(package_to_im
         config,
         target=img_in_out,
         packages=[
-            create_package_config(package + ".zip", True, target_directory=target_directory)
+            create_normal_package_config(package + ".zip", True, target_directory=target_directory)
             for package, target_directory in zip(packages, target_directories)
         ],
         partition_numbers=partitions,
@@ -230,7 +231,7 @@ def test_07_package_service_with_suffix(package_to_image_placer_binary):
         img_in,
         img_out,
         [
-            create_package_config(
+            create_normal_package_config(
                 package_zip,
                 True,
                 service_name_suffix="test",
@@ -268,7 +269,7 @@ def test_08_package_with_service_with_suffix_starting_with_hyphen(
         img_in,
         img_out,
         [
-            create_package_config(
+            create_normal_package_config(
                 package_zip,
                 True,
                 service_name_suffix="-test",
