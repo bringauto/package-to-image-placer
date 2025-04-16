@@ -183,7 +183,7 @@ def create_image(image_path: str, image_size: str, partitions_count: int) -> str
     return image_path
 
 
-def create_package_config(
+def create_normal_package_config(
     package_path: str,
     enable_services: bool = False,
     service_name_suffix: str = "",
@@ -208,7 +208,25 @@ def create_package_config(
         "target-directory": target_directory,
         "overwrite-files": overwrite_file if overwrite_file is not None else [],
     }
+    return package_config
 
+
+def create_configuration_package_config(
+    package_path: str,
+    overwrite_file: list[str] = None,
+) -> dict:
+    """
+    Create a configuration package configuration file.
+    Args:
+        package_path (str): The path to the package zip file.
+        overwrite_file (list[str]): A list of files to overwrite in the package.
+    Returns:
+        dict: The configuration package configuration.
+    """
+    package_config = {
+        "package-path": package_path,
+        "overwrite-files": overwrite_file if overwrite_file is not None else [],
+    }
     return package_config
 
 
@@ -394,7 +412,7 @@ def compare_directories(dir1: str, dir2: str) -> bool:
     return True
 
 
-def is_package_installed(package: dict, mount_point: str) -> bool:
+def is_package_installed(package: dict, mount_point: str, configuration_package=False) -> bool:
     """
     TODO;
     """
@@ -412,6 +430,9 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
         package_dir = package_dir[1:]
     packet_name = os.path.basename(package_path).split(".")[0]
     mount_package_dir = os.path.join(mount_point, package_dir, packet_name)
+    if configuration_package:
+        unzip_package_dir = os.path.join(unzip_package_dir, packet_name)
+
     print(package_dir, packet_name)
     print("Diffing: ", unzip_package_dir, mount_package_dir)
 
@@ -540,6 +561,7 @@ def inspect_image(config_path: str) -> bool:
     image_path = config.get("target")
     partitions = config.get("partition-numbers")
     packages = config.get("packages")
+    configuration_packages = config.get("configuration-packages")
 
     if not os.path.exists(image_path):
         print(f"Image {image_path} does not exist.")
@@ -559,6 +581,12 @@ def inspect_image(config_path: str) -> bool:
                 if not is_package_installed(package, test_mount_point):
                     test_passed = False
                     print(f"Package {package} not properly installed.")
+                    break
+            for package in configuration_packages:
+                print(f"Partition: {partition}, Configuration Package: {package}")
+                if not is_package_installed(package, test_mount_point, True):
+                    test_passed = False
+                    print(f"Configuration package {package} not properly installed.")
                     break
 
             unmount_disk(test_mount_point)
