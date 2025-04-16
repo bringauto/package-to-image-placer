@@ -8,7 +8,8 @@ from test_utils.test_utils import (
     create_config,
     inspect_image,
     create_symlink,
-    create_package_config,
+    create_normal_package_config,
+    create_configuration_package_config,
 )
 
 
@@ -33,7 +34,7 @@ def test_02_write_one_package(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [create_package_config(package_zip)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_zip)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -60,7 +61,7 @@ def test_03_write_two_packages(package_to_image_placer_binary):
         config,
         img_in,
         img_out,
-        [create_package_config(package_1 + ".zip"), create_package_config(package_2 + ".zip")],
+        [create_normal_package_config(package_1 + ".zip"), create_normal_package_config(package_2 + ".zip")],
         partitions,
     )
 
@@ -99,11 +100,11 @@ def test_04_write_multiple_packages_to_multiple_partitions(package_to_image_plac
         img_in,
         img_out,
         [
-            create_package_config(package_1 + ".zip"),
-            create_package_config(package_2 + ".zip"),
-            create_package_config(package_3 + ".zip"),
-            create_package_config(package_4 + ".zip"),
-            create_package_config(package_5 + ".zip"),
+            create_normal_package_config(package_1 + ".zip"),
+            create_normal_package_config(package_2 + ".zip"),
+            create_normal_package_config(package_3 + ".zip"),
+            create_normal_package_config(package_4 + ".zip"),
+            create_normal_package_config(package_5 + ".zip"),
         ],
         partitions,
     )
@@ -130,7 +131,7 @@ def test_05_pass_package_as_symlink(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out, [create_package_config(package_symlink)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_symlink)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
     assert result.returncode == 0
@@ -154,7 +155,7 @@ def test_06_write_one_package_target_already_exists(package_to_image_placer_bina
     with open(img_out, "w") as f:
         f.write("Test data")
 
-    create_config(config, img_in, img_out, [create_package_config(package_zip)], partitions)
+    create_config(config, img_in, img_out, [create_normal_package_config(package_zip)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
@@ -178,7 +179,7 @@ def test_07_write_one_package_no_clone(package_to_image_placer_binary):
     create_config(
         config,
         target=img_in_out,
-        packages=[create_package_config(package_zip)],
+        packages=[create_normal_package_config(package_zip)],
         partition_numbers=partitions,
         no_clone=True,
     )
@@ -204,7 +205,7 @@ def test_08_write_one_package_try_different_overwrite_flag(package_to_image_plac
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config, img_in, img_out_1, [create_package_config(package_zip)], partitions)
+    create_config(config, img_in, img_out_1, [create_normal_package_config(package_zip)], partitions)
 
     # write package to the image for the first time
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
@@ -212,7 +213,7 @@ def test_08_write_one_package_try_different_overwrite_flag(package_to_image_plac
     assert inspect_image(config)
 
     # write package to the image for the second time (it should fail because override is not set)
-    create_config(config, img_out_1, img_out_2, [create_package_config(package_zip)], partitions)
+    create_config(config, img_out_1, img_out_2, [create_normal_package_config(package_zip)], partitions)
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
     assert result.returncode == 1
     assert not os.path.exists(img_out_2)
@@ -223,7 +224,7 @@ def test_08_write_one_package_try_different_overwrite_flag(package_to_image_plac
         img_out_1,
         img_out_2,
         [
-            create_package_config(
+            create_normal_package_config(
                 package_zip, overwrite_file=["/normal_package/test_file", "/normal_package/symlinks/symlink"]
             )
         ],
@@ -249,7 +250,7 @@ def test_09_write_one_package_overwrite_config_no_clone_value_to_true(package_to
     create_config(
         config,
         target=img_in_out,
-        packages=[create_package_config(package_zip)],
+        packages=[create_normal_package_config(package_zip)],
         partition_numbers=partitions,
         no_clone=False,
     )
@@ -274,7 +275,7 @@ def test_10_write_one_package_overwrite_config_no_clone_value_to_false(package_t
     create_config(
         config,
         target=img_in_out,
-        packages=[create_package_config(package_zip)],
+        packages=[create_normal_package_config(package_zip)],
         partition_numbers=partitions,
         no_clone=True,
     )
@@ -299,8 +300,8 @@ def test_11_double_write_without_override(package_to_image_placer_binary):
     create_image(img_in, "10MB", 1)
     make_image_mountable(img_in)
 
-    create_config(config_1, img_in, img_out_1, [create_package_config(package_zip)], partitions)
-    create_config(config_2, img_out_1, img_out_2, [create_package_config(package_zip)], partitions)
+    create_config(config_1, img_in, img_out_1, [create_normal_package_config(package_zip)], partitions)
+    create_config(config_2, img_out_1, img_out_2, [create_normal_package_config(package_zip)], partitions)
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config_1)
 
@@ -340,11 +341,74 @@ def test_12_write_to_custom_target_directory(package_to_image_placer_binary):
         config,
         img_in,
         img_out,
-        [create_package_config(package_zip, target_directory=target_directory)],
+        [create_normal_package_config(package_zip, target_directory=target_directory)],
         partitions,
     )
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
+    assert result.returncode == 0
+    assert inspect_image(config)
+
+
+def test_13_write_configuration_package(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will write a package to an image when the package is a configuration package"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    normal_package = "test_data/normal_package"
+    normal_package_zip = normal_package + ".zip"
+    conf_package = "test_data/configuration_package"
+    conf_package_zip = conf_package + ".zip"
+    partitions = [1]
+
+    create_test_package(normal_package, "10KB")
+    create_test_package(conf_package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [create_normal_package_config(normal_package_zip)],
+        partitions,
+        [create_configuration_package_config(conf_package_zip)],
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 0
+    assert inspect_image(config)
+
+
+def test_14_write_multiple_different_packages(package_to_image_placer_binary):
+    """Write five packages of each type to an image"""
+    package_n = 5
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    normal_packages = [f"test_data/normal_package_{i}" for i in range(1, package_n + 1)]
+    normal_package_zips = [f"{pkg}.zip" for pkg in normal_packages]
+    conf_packages = [f"test_data/configuration_package_{i}" for i in range(1, package_n + 1)]
+    conf_package_zips = [f"{pkg}.zip" for pkg in conf_packages]
+    partitions = [1, 2]
+
+    for normal_package in normal_packages:
+        create_test_package(normal_package, "10KB")
+
+    for conf_package in conf_packages:
+        create_test_package(conf_package, "10KB")
+
+    create_image(img_in, "10MB", 2)
+    make_image_mountable(img_in)
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [create_normal_package_config(normal_package_zip) for normal_package_zip in normal_package_zips],
+        partitions,
+        [create_configuration_package_config(conf_package_zip) for conf_package_zip in conf_package_zips],
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
     assert result.returncode == 0
     assert inspect_image(config)
