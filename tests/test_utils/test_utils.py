@@ -273,7 +273,7 @@ Description=My Custom Testing Service
 After=network.target
 
 [Service]
-ExecStart=test_file
+ExecStart=test_file arguments
 Type=simple
 User=root
 WorkingDirectory=.
@@ -399,7 +399,7 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
     TODO;
     """
     package_path = package["package-path"]
-    package_dir = package["target-directory"]
+    package_dir = package.get("target-directory", "/")
     print(f"Checking package {package_path} installation...")
     unzip_package_dir = os.path.abspath("test_data/unzip_package")
     if os.path.exists(unzip_package_dir):
@@ -418,7 +418,7 @@ def is_package_installed(package: dict, mount_point: str) -> bool:
     if not compare_directories(unzip_package_dir, mount_package_dir):
         return False
 
-    if not package.get("enable-services"):
+    if not package.get("enable-services", False):
         return True
 
     service_files = [
@@ -484,22 +484,36 @@ def is_service_enabled(service_name: str, mount_point: str) -> bool:
         return False
 
     with open(service_path, "r") as f:
-        required_fields = ["ExecStart=", "WorkingDirectory="]
+        required_fields = [
+            "ExecStart=",
+            "WorkingDirectory=",
+            "User=",
+            "RestartSec=",
+            "Type=simple",
+            "WantedBy=multi-user.target",
+        ]
 
         for line in f:
             if line.startswith("ExecStart="):
-                required_fields.remove("ExecStart=")
-                exec_start = line.split("=")[1].strip().strip("/")
+                exec_start = line.split("=")[1].split()[0].strip().strip("/")
                 if not os.path.exists(os.path.join(mount_point, exec_start)):
                     print(f"Service {service_name} executable not found: {exec_start}")
                     return False
 
+                args_count = len(line.split("=")[1].split())
+                if args_count != 2:
+                    print(f"Service {service_name} has not exactly one argument: {args_count}")
+                    return False
+
             elif line.startswith("WorkingDirectory="):
-                required_fields.remove("WorkingDirectory=")
                 working_dir = line.split("=")[1].strip().strip("/")
                 if not os.path.exists(os.path.join(mount_point, working_dir)):
                     print(f"Service {service_name} working directory not found: {working_dir}")
                     return False
+
+            for field in required_fields:
+                if line.startswith(field):
+                    required_fields.remove(field)
 
         if len(required_fields) > 0:
             print(f"Service {service_name} is missing required fields: {required_fields}")
