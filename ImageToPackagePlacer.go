@@ -106,7 +106,7 @@ func main() {
 	for _, pkg := range configuration.Config.ConfigurationPackages {
 		configurationPackagePaths = append(configurationPackagePaths, pkg.PackagePath)
 	}
-	log.Printf("Standard packages: \n\t%v\nConfiguration packages: \n\t%v\nwill be copied to partitions: %v\n", strings.Join(standardPackagePaths, "\n\t"), strings.Join(configurationPackagePaths, "\n\t"), configuration.Config.PartitionNumbers)
+	log.Printf("\n%d standard packages: \n\t%v\n%d configuration packages: \n\t%v\nwill be copied to partitions: %v\n", len(standardPackagePaths), strings.Join(standardPackagePaths, "\n\t"), len(configurationPackagePaths), strings.Join(configurationPackagePaths, "\n\t"), configuration.Config.PartitionNumbers)
 
 	if configuration.Config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")

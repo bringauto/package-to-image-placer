@@ -20,7 +20,7 @@ type PackageConfig struct {
 }
 
 type ConfigurationPackage struct {
-	PackagePath    string   `json:"path"`
+	PackagePath    string   `json:"package-path"`
 	OverwriteFiles []string `json:"overwrite-files"`
 }
 
