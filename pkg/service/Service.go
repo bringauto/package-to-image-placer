@@ -188,7 +188,7 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	}
 
 	newExecutablePath := filepath.Join(newWorkDir, executableWithoutWorkDir)
-	newExecStartCommand := strings.Replace(execStart, originalExecutable, newExecutablePath, 1)
+	newExecStartCommand := newExecutablePath
 	for i := 1; i < len(execStartStrings); i++ {
 		replaced := strings.Replace(execStartStrings[i], workingDir, newWorkDir, 1)
 		newExecStartCommand = strings.Join([]string{newExecStartCommand, replaced}, " ")
