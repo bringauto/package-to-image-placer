@@ -114,7 +114,7 @@ func ValidateConfiguration() error {
 	}
 
 	if Config.Source == "" && !Config.NoClone {
-		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments.")
+		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments")
 	} else if !Config.NoClone && !helper.DoesFileExists(Config.Source) {
 		return fmt.Errorf("source image path does not exist")
 	}
