@@ -153,8 +153,9 @@ func MountPartitionAndCopyPackages(partitionNumber int, firstPartition bool) err
 			return fmt.Errorf("error while copying package: %v", err)
 		}
 	}
-	tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
+	// tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
 	for i := range configuration.Config.ConfigurationPackages {
+		tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
 		tmpPackage.PackagePath = configuration.Config.ConfigurationPackages[i].PackagePath
 		tmpPackage.OverwriteFiles = configuration.Config.ConfigurationPackages[i].OverwriteFiles
 		err = CopyPackageActivateService(mountDir, &tmpPackage, firstPartition)
@@ -274,14 +275,6 @@ func findAllFilesInZip(zipReader *zip.Reader, targetFileNames []string) error {
 // It returns a list of service files found in the archive.
 func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, mountDir string, packageConfig *configuration.PackageConfig) (string, error) {
 	serviceFile := ""
-
-	// Check if the file is in the zip archive
-	for _, file := range zipReader.File {
-		if file.Name == packageConfig.PackagePath {
-			log.Printf("File %s found in the zip archive", file.Name)
-			break
-		}
-	}
 
 	for _, file := range zipReader.File {
 		targetFilePath := filepath.Join(targetDir, file.Name)

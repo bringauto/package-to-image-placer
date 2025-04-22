@@ -29,7 +29,7 @@ def clean_up_between_tests():
 
     subprocess.run(["sudo", "losetup", "-D"], check=True)
     # Clean up
-    subprocess.run(["sudo", "rm", "-rf", test_data_dir], check=True)
+    test_utils.remove_dir(test_data_dir)
 
 
 @pytest.fixture(scope="session", autouse=True)

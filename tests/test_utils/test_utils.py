@@ -18,8 +18,9 @@ def remove_dir(dir_path: str) -> None:
         return
 
     dir_path = os.path.abspath(dir_path)
-    if "tests/test_data" not in dir_path:
-        raise ValueError("Cannot remove data outside of tests/test_data directory.")
+    allowed_root = os.path.abspath("test_data")
+    if os.path.commonpath([dir_path, allowed_root]) != allowed_root:
+        raise ValueError("Refusing to remove directory outside of tests/test_data.")
 
     subprocess.run(["sudo", "rm", "-rf", dir_path], check=True)
 
@@ -85,7 +86,7 @@ def create_test_package(
     """
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
-        shutil.rmtree(package_path)
+        remove_dir(package_path)
 
     package_size_bytes = convert_size_to_bytes(package_size)
 
@@ -191,15 +192,17 @@ def create_normal_package_config(
     overwrite_file: list[str] = None,
 ) -> dict:
     """
-    Create a package configuration file.
+    Create a package configuration dictionary.
+
     Args:
         package_path (str): The path to the package zip file.
-        enable_services (bool): Whether to enable services.
-        service_name_suffix (str): The suffix for the service names.
-        package_target_directory (str): The target directory for the package.
-        overwrite_file (list[str]): A list of files to overwrite in the package.
+        enable_services (bool, optional): Whether to enable services. Defaults to False.
+        service_name_suffix (str, optional): The suffix for the service names. Defaults to an empty string.
+        target_directory (str, optional): The target directory for the package. Defaults to "/".
+        overwrite_file (list[str], optional): A list of files to overwrite in the package. Defaults to None.
+
     Returns:
-        dict: The package configuration.
+        dict: The package configuration dictionary.
     """
     package_config = {
         "package-path": os.path.abspath(package_path),
@@ -323,10 +326,14 @@ def unmount_disk(device_path: str) -> None:
     mounts = subprocess.check_output(["mount"]).decode()
     if device_path in mounts:
         subprocess.run(["sudo", "sync"], check=True)
+        attempts = 0
         rc = subprocess.run(["sudo", "umount", device_path], check=False)
-        while rc.returncode != 0:
-            print(f"Failed to unmount {device_path}. Retrying...")
+        while rc.returncode != 0 and attempts < 5:
+            attempts += 1
+            print(f"Failed to unmount {device_path}. Retrying ({attempts}/5)...")
             rc = subprocess.run(["sudo", "umount", device_path], check=False)
+        if rc.returncode != 0:
+            raise RuntimeError(f"Unable to unmount {device_path} after {attempts} attempts")
     else:
         print(f"Device {device_path} is not mounted.")
 
@@ -400,8 +407,13 @@ def compare_directories(dir1: str, dir2: str) -> bool:
         return False
 
     for f1, f2 in zip(files1, files2):
-        rc = subprocess.run(["diff", "-q", os.path.join(dir1, f1), os.path.join(dir2, f2)], check=True)
+        rc = subprocess.run(
+            ["diff", "-q", os.path.join(dir1, f1), os.path.join(dir2, f2)], check=False, capture_output=True
+        )
         if rc.returncode != 0:
+            print(
+                f"Differences found between {os.path.join(dir1, f1)} and {os.path.join(dir2, f2)}: {rc.stdout.strip()}"
+            )
             return False
 
     dirs1.sort()
@@ -506,14 +518,14 @@ def is_service_enabled(service_name: str, mount_point: str) -> bool:
         return False
 
     with open(service_path, "r") as f:
-        required_fields = [
+        required_fields = {
             "ExecStart=",
             "WorkingDirectory=",
             "User=",
             "RestartSec=",
             "Type=simple",
             "WantedBy=multi-user.target",
-        ]
+        }
 
         for line in f:
             if line.startswith("ExecStart="):
@@ -533,11 +545,9 @@ def is_service_enabled(service_name: str, mount_point: str) -> bool:
                     print(f"Service {service_name} working directory not found: {working_dir}")
                     return False
 
-            for field in required_fields:
-                if line.startswith(field):
-                    required_fields.remove(field)
+            required_fields = {f for f in required_fields if not line.startswith(f)}
 
-        if len(required_fields) > 0:
+        if required_fields:
             print(f"Service {service_name} is missing required fields: {required_fields}")
             return False
 
@@ -615,19 +625,17 @@ def run_package_to_image_placer(
 
     Args:
         package_to_image_placer_binary (str): The path to the package-to-image-placer binary.
-        source (str): The path to the source image.
-        target (str): The path to the target image.
-        config (str): The path to the configuration file.
-        no_clone (bool): Whether to clone the source image.
-        overwrite (bool): Whether to overwrite the target image if it already exists.
-        package_dir (str): The target directory to install the packages to.
-        target_dir (str): The target directory to install the packages to.
-        log_path (str): The path to the log file.
-        send_to_stdin (str): The input to send to the process.
-        result_list (list): A list to append the result to.
+        source (str, optional): The path to the source image.
+        target (str, optional): The path to the target image.
+        config (str, optional): The path to the configuration file.
+        no_clone (bool, optional): Whether to clone the source image.
+        package_dir (str, optional): The directory containing the packages to install.
+        log_path (str, optional): The path to the log file. Defaults to ".".
+        send_to_stdin (str, optional): The input to send to the process.
+        result_list (list, optional): A list to append the result to.
 
     Returns:
-        subprocess.CompletedProcess: The result of the process.
+        subprocess.CompletedProcess: The result of the process execution.
     """
 
     parameters = [package_to_image_placer_binary]
@@ -669,11 +677,11 @@ def run_package_to_image_placer(
     except Exception as e:
         print(f"Failed to send input to the process: {e}")
 
-    stdout, stdin = result.communicate()
+    stdout, stderr = result.communicate()
 
     # this outputs can be inspected when running pytest with -s flag
     print(stdout)
-    print(stdin)
+    print(stderr)
 
     if result_list is not None:
         result_list.append(result)
