@@ -202,7 +202,7 @@ def create_normal_package_config(
         dict: The package configuration.
     """
     package_config = {
-        "package-path": package_path,
+        "package-path": os.path.abspath(package_path),
         "enable-services": enable_services,
         "service-name-suffix": service_name_suffix,
         "target-directory": target_directory,
@@ -224,7 +224,7 @@ def create_configuration_package_config(
         dict: The configuration package configuration.
     """
     package_config = {
-        "package-path": package_path,
+        "package-path": os.path.abspath(package_path),
         "overwrite-files": overwrite_file if overwrite_file is not None else [],
     }
     return package_config
@@ -255,14 +255,15 @@ def create_config(
         log_path (str): The path to the log file.
         remove_from_config (list[str]): A list of keys to remove from the configuration.
     """
+
     data = {
-        "source": source,
-        "target": target,
+        "source": os.path.abspath(source) if source else "",
+        "target": os.path.abspath(target) if target else "",
         "packages": packages if packages is not None else [],
         "configuration-packages": configuration_packages if configuration_packages is not None else [],
         "partition-numbers": partition_numbers if partition_numbers is not None else [],
         "no-clone": no_clone,
-        "log-path": log_path,
+        "log-path": os.path.abspath(log_path) if log_path else "",
     }
 
     for key in remove_from_config or []:
