@@ -153,7 +153,7 @@ func parseArguments(args []string) error {
 	targetImage := flags.String("target", "", "Target image path (will be created).")
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
-	packageDirectory := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
+	configuration.Config.PackageDir = *flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
 	logPath := flags.String("log-path", "./", "Path to log file")
 	showUsage := flags.Bool("h", false, "Show usage")
 
@@ -170,9 +170,7 @@ func parseArguments(args []string) error {
 		os.Exit(0)
 	}
 
-	interactiveRun := true
 	if *configFile != "" {
-		interactiveRun = false
 		file, err := os.Open(*configFile)
 		if err != nil {
 			return fmt.Errorf("error opening configuration.Config file: %v", err)
@@ -184,6 +182,10 @@ func parseArguments(args []string) error {
 		if err != nil {
 			return fmt.Errorf("error decoding configuration.Config file: %v", err)
 		}
+
+		configuration.Config.InteractiveRun = false
+		configuration.Config.ConfigFile = *configFile
+		configuration.ConvertRelativePathsToWorkingDir()
 	}
 
 	if *sourceImage != "" {
@@ -206,8 +208,6 @@ func parseArguments(args []string) error {
 	if noCloneSet {
 		configuration.Config.NoClone = *noClone
 	}
-	configuration.Config.PackageDir = *packageDirectory
-	configuration.Config.InteractiveRun = interactiveRun
 	return nil
 }
 

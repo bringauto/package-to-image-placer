@@ -34,6 +34,7 @@ type Configuration struct {
 	LogPath               string                 `json:"log-path"`
 	InteractiveRun        bool                   `json:"-"` // Ignored by JSON
 	PackageDir            string                 `json:"-"` // Ignored by JSON
+	ConfigFile            string                 `json:"-"` // Ignored by JSON
 }
 
 // Global variable to hold the configuration
@@ -46,7 +47,9 @@ var Config = Configuration{
 	ConfigurationPackages: []ConfigurationPackage{},
 	PartitionNumbers:      []int{},
 	LogPath:               "",
-	InteractiveRun:        false,
+	InteractiveRun:        true,
+	PackageDir:            "",
+	ConfigFile:            "",
 }
 
 // CreateConfigurationFile Creates a file and places the configuration in form of a JSON string
@@ -116,10 +119,10 @@ func ValidateConfiguration() error {
 	if Config.Source == "" && !Config.NoClone {
 		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments")
 	} else if !Config.NoClone && !helper.DoesFileExists(Config.Source) {
-		return fmt.Errorf("source image path does not exist")
+		return fmt.Errorf("source image path: %s does not exist", Config.Source)
 	}
 	if Config.NoClone && !helper.DoesFileExists(Config.Target) {
-		return fmt.Errorf("target image does not exist")
+		return fmt.Errorf("target image path: %s does not exist", Config.Target)
 	}
 
 	if !Config.InteractiveRun {
@@ -142,4 +145,28 @@ func ValidateConfiguration() error {
 
 	}
 	return nil
+}
+
+func convertOneRelativePathToWorkingDir(path string) string {
+	// Add location of configuration file to the path
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+	configFileBasePath := filepath.Dir(Config.ConfigFile)
+
+	return filepath.Join(configFileBasePath, path)
+
+}
+
+func ConvertRelativePathsToWorkingDir() {
+	// Convert relative paths from configuration to relative paths to the working directory
+	Config.Source = convertOneRelativePathToWorkingDir(Config.Source)
+	Config.Target = convertOneRelativePathToWorkingDir(Config.Target)
+	Config.LogPath = convertOneRelativePathToWorkingDir(Config.LogPath)
+	for i, pkg := range Config.Packages {
+		Config.Packages[i].PackagePath = convertOneRelativePathToWorkingDir(pkg.PackagePath)
+	}
+	for i, pkg := range Config.ConfigurationPackages {
+		Config.ConfigurationPackages[i].PackagePath = convertOneRelativePathToWorkingDir(pkg.PackagePath)
+	}
 }
