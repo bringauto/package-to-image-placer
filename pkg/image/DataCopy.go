@@ -45,7 +45,11 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 		if err != nil {
 			return err
 		}
-		packageConfig.TargetDirectory = strings.TrimPrefix(targetDirectoryFullPath, mountDir) + "/"
+		relPath, err := filepath.Rel(mountDir, targetDirectoryFullPath)
+		if err != nil {
+			return fmt.Errorf("failed to determine relative path for target directory: %v", err)
+		}
+		packageConfig.TargetDirectory = filepath.ToSlash(relPath) + "/"
 	} else {
 		targetDirectoryFullPath = filepath.Join(mountDir, packageConfig.TargetDirectory)
 		err := os.MkdirAll(targetDirectoryFullPath, os.ModePerm)
@@ -89,6 +93,7 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 	}
 
 	if packageConfig.EnableServices {
+		// Service name suffix should not start with a hyphen
 		if strings.HasPrefix(packageConfig.ServiceNameSuffix, "-") {
 			return fmt.Errorf("service name suffix should not start with a hyphen")
 		}
@@ -390,7 +395,7 @@ func waitUntilDirectoryIsUnmounted(mountDir string, timeout time.Duration) {
 	start := time.Now()
 	log.Print("Waiting for directory to be empty...")
 	for {
-		ls_output, err := helper.RunCommand("ls "+mountDir, true)
+		ls_output, err := helper.RunCommand("ls \""+mountDir+"\"", true)
 		if err != nil {
 			log.Printf("Error checking mountpoint: %v", err)
 			return

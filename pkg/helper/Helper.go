@@ -64,8 +64,8 @@ func ValidSourceImage(imagePath string) error {
 
 // RemoveInvalidOutputImage removes the output image if it exists.
 // Returns an error if the output image exists and cannot be removed.
-func RemoveInvalidOutputImage(outputImage string, no_clone bool) error {
-	if DoesFileExists(outputImage) && !no_clone {
+func RemoveInvalidOutputImage(outputImage string, noClone bool) error {
+	if DoesFileExists(outputImage) && !noClone {
 		err := os.Remove(outputImage)
 		if err != nil {
 			return fmt.Errorf("failed to remove invalid output image: %s", outputImage)
@@ -74,7 +74,7 @@ func RemoveInvalidOutputImage(outputImage string, no_clone bool) error {
 	return nil
 }
 
-// GetMountDir returns the mount directory for the given image path.
+// GetTargetArchiveDirName returns the mount directory for the given image path.
 func GetTargetArchiveDirName(targetDir string, archivePath string, standardPackage bool) string {
 	if standardPackage {
 		return filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
@@ -90,7 +90,6 @@ func SplitStringPreserveSubstrings(input string) []string {
 }
 
 func RemoveMountDirAndPackageName(path string, mountDir string, packageDir string, packagePath string) string {
-	// strings.TrimPrefix(serviceFile, mountDir+strings.TrimSuffix(filepath.Base(packageConfig.PackagePath), ".zip"))
 	path = strings.TrimPrefix(path, mountDir)
 
 	path = strings.TrimPrefix(path, "/")
