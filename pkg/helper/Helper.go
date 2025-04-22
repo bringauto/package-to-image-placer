@@ -101,7 +101,9 @@ func RemoveMountDirAndPackageName(path string, mountDir string, packageDir strin
 	packageName := strings.TrimSuffix(filepath.Base(packagePath), ".zip")
 	path = strings.TrimPrefix(path, packageName)
 
-	if path[0] != '/' {
+	if path == "" {
+		path = "/"
+	} else if path[0] != '/' {
 		path = "/" + path
 	}
 

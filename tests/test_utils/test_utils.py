@@ -84,10 +84,11 @@ def create_test_package(
         create_symlinks (bool): Whether to create symbolic links in the package directory.
         services (list[str]): A list of service files to include in the package.
     """
+    if os.path.exists(f"{package_path}.zip"):
+        os.remove(f"{package_path}.zip")
     if os.path.exists(package_path):
         print(f"Package {package_path} already exists. Removing...")
         remove_dir(package_path)
-
     package_size_bytes = convert_size_to_bytes(package_size)
 
     os.makedirs(package_path)
@@ -670,9 +671,10 @@ def run_package_to_image_placer(
 
     try:
         if send_to_stdin is not None:
-            for char in send_to_stdin:
-                result.stdin.write(char + "\n")
-                result.stdin.flush()
+            result.stdin.write(send_to_stdin)
+            if not send_to_stdin.endswith("\n"):
+                result.stdin.write("\n")
+            result.stdin.flush()
 
     except Exception as e:
         print(f"Failed to send input to the process: {e}")

@@ -396,7 +396,7 @@ func waitUntilDirectoryIsUnmounted(mountDir string, timeout time.Duration) {
 			return
 		}
 
-		if ls_output == "" {
+		if strings.TrimSpace(ls_output) == "" {
 			return
 		}
 
