@@ -109,13 +109,17 @@ func ValidateConfiguration() error {
 	if Config.Target == Config.Source {
 		return fmt.Errorf("source and target image paths are the same")
 	}
+	if Config.Source != "" && Config.NoClone {
+		return fmt.Errorf("source image and no-clone are mutually exclusive")
+	}
+
 	if Config.Source == "" && !Config.NoClone {
-		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments.\n")
+		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments")
 	} else if !Config.NoClone && !helper.DoesFileExists(Config.Source) {
-		return fmt.Errorf("source image path does not exist\n")
+		return fmt.Errorf("source image path does not exist")
 	}
 	if Config.NoClone && !helper.DoesFileExists(Config.Target) {
-		return fmt.Errorf("target image does not exist\n")
+		return fmt.Errorf("target image does not exist")
 	}
 
 	if !Config.InteractiveRun {
