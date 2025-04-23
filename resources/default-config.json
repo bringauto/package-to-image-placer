@@ -1,11 +1,9 @@
 {
   "source": "",
   "target": "",
-  "no-clone": false,
+  "no-clone": true,
   "packages": [],
+  "configuration-packages": [],
   "partition-numbers": [],
-  "target-directory": "",
-  "service-names": [],
-  "overwrite": false,
   "log-path": ""
 }
