@@ -153,7 +153,7 @@ func validateSourceAndTarget() error {
 // validatePackagesAndPartitions validates the packages and partitions
 func validatePackagesAndPartitions() error {
 	if !Config.InteractiveRun {
-		if len(Config.Packages) == 0 {
+		if len(Config.Packages) == 0 && len(Config.ConfigurationPackages) == 0 {
 			return fmt.Errorf("no packages defined in configuration")
 		}
 		for _, pkg := range Config.Packages {
@@ -161,6 +161,12 @@ func validatePackagesAndPartitions() error {
 				return fmt.Errorf("package %s does not exist", pkg.PackagePath)
 			}
 		}
+		for _, pkg := range Config.ConfigurationPackages {
+			if !helper.DoesFileExists(pkg.PackagePath) {
+				return fmt.Errorf("configuration package %s does not exist", pkg.PackagePath)
+			}
+		}
+
 		if len(Config.PartitionNumbers) == 0 {
 			return fmt.Errorf("no partition numbers defined in configuration")
 		}

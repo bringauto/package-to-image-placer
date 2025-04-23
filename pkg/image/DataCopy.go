@@ -84,7 +84,7 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 		return nil
 	}
 
-	if configuration.Config.InteractiveRun {
+	if configuration.Config.InteractiveRun && firstPartition {
 		packageConfig.EnableServices = user.GetUserConfirmation("Do you want to enable services for package " + packageConfig.PackagePath + "?")
 		if packageConfig.EnableServices {
 			packageConfig.ServiceNameSuffix, err = user.ReadStringFromUser("Enter service name suffix (leave empty for none): ")
@@ -392,9 +392,13 @@ func waitUntilDirectoryIsUnmounted(mountDir string, timeout time.Duration) {
 	start := time.Now()
 	log.Print("Waiting for directory to be empty...")
 	for {
-		ls_output, err := helper.RunCommand("ls \""+mountDir+"\"", true)
+		// Check if the mount dir exists
+		if _, err := os.Stat(mountDir); os.IsNotExist(err) {
+			log.Printf("Directory %s does not exist, assuming unmounted", mountDir)
+			return
+		}
+		ls_output, err := helper.RunCommand("ls \""+mountDir+"\"", false)
 		if err != nil {
-			log.Printf("Error checking mountpoint: %v", err)
 			return
 		}
 

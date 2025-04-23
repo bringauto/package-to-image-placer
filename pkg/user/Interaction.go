@@ -331,13 +331,11 @@ func CleanUpCommandLine() {
 		log.Printf("Warning: /dev/tty not available, skipping terminal cleanup")
 		return
 	}
-	// Reset terminal settings
-	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
-	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
+	CleanUpCommandLineSilent()
 }
 
+// CleanUpCommandLineSilent reverts the terminal settings to their default state without printing messages.
 func CleanUpCommandLineSilent() {
-	// Reset terminal settings
 	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
 	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
 }
