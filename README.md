@@ -54,9 +54,7 @@ When passing arguments through the command line, it is recommended to use the `-
   * If used with no-clone option this file must exist and will be changed.
 * `-config` - Path to the config file. Sets Non-interactive mode.
 * `-no-clone` - Do not clone the source image. The target image must exist. If the operation fails, it may leave the image in an inconsistent state.
-* `-overwrite` - Overwrite files in target image if it exists.
 * `-package-dir` - Initial directory for the package selection. Interactive mode only.
-* `-target-dir` - Override target directory on the image from config. Non-interactive mode only.
 * `-log-path` - Directory for the log file. Default is the current directory (`.`). The log file will be created at `log-path/package-to-image-placer.log`.
 * `-h` - Show usage.
 
@@ -74,31 +72,48 @@ To run integration tests, refer to the [tests/README.md](tests/README.md) file.
 
 ## Config file
 
-The config can be generated in interactive run. The config file is used to set the package, target partition, and service files to activate.
+The configuration for the image customization process can be generated through an interactive run. Alternatively, you can directly edit a configuration file to specify the packages to be applied, the target partitions for these changes, and the service files that should be activated.
 
-Default config file is in [default-config.json](./resources/default-config.json).
+The default configuration file is located at [default-config.json](./resources/default-config.json).
 
-Config structure is as follows:
+The structure of the configuration file is defined in JSON format as follows:
 
 ```json lines
 {
   "source": "<source-image-path>",
   "target": "<target-image-path>",
+  "no-clone": <bool>,
   "packages": [
-    "<package-path.zip>"
+    {
+     "package-path": "package-path.zip",
+     "enable-services": <bool>,
+     "service-name-suffix": "<service-name-suffix>",
+     "target-directory": "<target-directory>",
+     "overwrite-files": [
+       "<file-name-1>",
+       "<file-name-2>"
+     ]
+    }
   ],
-  "partition-numbers": [ 
+  "partition-numbers": [
     <partition-number>
   ],
-  "service-files": [
-    "<service-file-name-with-suffix>"
+  "configuration_packages": [
+    {
+     "package-path": "configuration-package-path.zip",
+     "overwrite-files": [
+       "<file-name-1>",
+       "<file-name-2>"
+     ]
+    }
   ],
-  "target-directory": "<target-directory-on-image>",
   "log-path": "<log-path>",
-  "no-clone": <bool>,
-  "overwrite": <bool>
 }
 ```
+
+* Paths in the configuration file can be absolute or relative to the location of the configuration file.
+* Overwrite files paths are relative to location in package zip-file.
+* Difference between package and configuration packages is that the configuration packages are not placed in the specified directory with the package name, and are always placed into the root of the image and services from them can not be activated.
 
 ## Services
 
@@ -154,10 +169,11 @@ sudo dnf install libguestfs-tools
 
 ## Troubleshooting
 
-#### Libvirt error
+### Libvirt error
 
 If you have error that look like this:
-```
+
+``` text
 libguestfs: error: could not create appliance through libvirt. 
 Original error from libvirt: internal error: 
 process exited while connecting to monitor: 2025-03-03T14:51:53.981133Z qemu-kvm: -device {"driver":"scsi-hd","bus":"scsi0.0","channel":0,"scsi-id":0,"lun":0,"device_id":"drive-scsi0-0-0-0","drive":"libvirt-2-storage","id":"scsi0-0-0-0","bootindex":1,"write-cache":"on"}: Failed to get "write" lock
