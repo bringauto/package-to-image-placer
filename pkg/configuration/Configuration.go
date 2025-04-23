@@ -48,7 +48,7 @@ var Config = Configuration{
 	PartitionNumbers:      []int{},
 	LogPath:               "",
 	InteractiveRun:        true,
-	PackageDir:            "",
+	PackageDir:            "./",
 	ConfigFile:            "",
 }
 

@@ -397,7 +397,7 @@ func waitUntilDirectoryIsUnmounted(mountDir string, timeout time.Duration) {
 			log.Printf("Directory %s does not exist, assuming unmounted", mountDir)
 			return
 		}
-		ls_output, err := helper.RunCommand("ls \""+mountDir+"\"", false)
+		ls_output, err := helper.RunCommand(fmt.Sprintf("ls %q", mountDir), false)
 		if err != nil {
 			return
 		}

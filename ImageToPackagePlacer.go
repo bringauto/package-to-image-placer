@@ -153,7 +153,7 @@ func parseArguments(args []string) error {
 	targetImage := flags.String("target", "", "Target image path (will be created).")
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
-	configuration.Config.PackageDir = *flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
+	packageDir := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
 	logPath := flags.String("log-path", "./", "Path to log file")
 	showUsage := flags.Bool("h", false, "Show usage")
 
@@ -193,6 +193,9 @@ func parseArguments(args []string) error {
 	}
 	if *targetImage != "" {
 		configuration.Config.Target = *targetImage
+	}
+	if *packageDir != "" {
+		configuration.Config.PackageDir = *packageDir
 	}
 	if *logPath != "./" {
 		configuration.Config.LogPath = *logPath
