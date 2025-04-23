@@ -351,8 +351,34 @@ def test_12_write_to_custom_target_directory(package_to_image_placer_binary):
     assert inspect_image(config)
 
 
-def test_13_write_configuration_package(package_to_image_placer_binary):
+def test_13_write_only_configuration_package(package_to_image_placer_binary):
     """Test if the package_to_image_placer will write a package to an image when the package is a configuration package"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    conf_package = "test_data/configuration_package"
+    conf_package_zip = conf_package + ".zip"
+    partitions = [1]
+
+    create_test_package(conf_package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [],
+        partitions,
+        [create_configuration_package_config(conf_package_zip)],
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 0
+    assert inspect_image(config)
+
+
+def test_14_write_package_and_configuration_package(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will write a package and configuration package to an image"""
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"
     img_out = "test_data/test_img_out.img"
@@ -380,8 +406,8 @@ def test_13_write_configuration_package(package_to_image_placer_binary):
     assert inspect_image(config)
 
 
-def test_14_write_multiple_different_packages(package_to_image_placer_binary):
-    """Write five packages of each type to an image"""
+def test_15_write_multiple_different_packages(package_to_image_placer_binary):
+    """Write five packages of both types to an image"""
     package_n = 5
     config = "test_data/test_config.json"
     img_in = "test_data/test_img.img.in"

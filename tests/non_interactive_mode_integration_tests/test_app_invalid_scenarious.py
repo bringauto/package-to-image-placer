@@ -6,6 +6,7 @@ from test_utils.test_utils import (
     make_image_mountable,
     create_config,
     create_normal_package_config,
+    create_configuration_package_config,
 )
 
 
@@ -124,6 +125,35 @@ def test_05_write_package_with_invalid_overwrite(package_to_image_placer_binary)
         img_out,
         [create_normal_package_config(package_zip, overwrite_file=["/nonexisting_file"])],
         partitions,
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+
+    assert result.returncode == 1
+
+    assert not os.path.exists(img_out)
+
+
+def test_06_write_package_with_invalid_overwrite_in_config_package(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will fail when attempting to write a config package with an invalid overwrite file"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    package = "test_data/normal_package"
+    package_zip = package + ".zip"
+    partitions = [1]
+
+    create_test_package(package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [],
+        partitions,
+        configuration_packages=[create_configuration_package_config(package_zip, overwrite_file=["/nonexisting_file"])],
     )
 
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)

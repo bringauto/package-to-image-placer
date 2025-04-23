@@ -9,6 +9,7 @@ from test_utils.test_utils import (
     create_image,
     make_image_mountable,
     inspect_image,
+    create_configuration_package_config,
 )
 
 
@@ -171,3 +172,59 @@ def test_06_invalid_config_format(package_to_image_placer_binary):
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
     assert result.returncode == 0
     assert inspect_image(config)
+
+
+def test_07_write_package_and_nonexisting_configuration_package(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will write a package and configuration package to an image"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    normal_package = "test_data/normal_package"
+    normal_package_zip = normal_package + ".zip"
+    conf_package = "test_data/configuration_package"
+    conf_package_zip = conf_package + ".zip"
+    partitions = [1]
+
+    create_test_package(normal_package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [create_normal_package_config(normal_package_zip)],
+        partitions,
+        [create_configuration_package_config(conf_package_zip)],
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 1
+    assert not os.path.exists(img_out)
+
+
+def test_08_write_nonexisting_package_and_configuration_package(package_to_image_placer_binary):
+    """Test if the package_to_image_placer will write a package and configuration package to an image"""
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out = "test_data/test_img_out.img"
+    normal_package = "test_data/normal_package"
+    normal_package_zip = normal_package + ".zip"
+    conf_package = "test_data/configuration_package"
+    conf_package_zip = conf_package + ".zip"
+    partitions = [1]
+
+    create_test_package(normal_package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+    create_config(
+        config,
+        img_in,
+        img_out,
+        [create_normal_package_config(normal_package_zip)],
+        partitions,
+        [create_configuration_package_config(conf_package_zip)],
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 1
+    assert not os.path.exists(img_out)
