@@ -37,6 +37,8 @@ func CopyPackagesToImagePartitions() error {
 	return nil
 }
 
+// CopyPackageActivateService copies the package to the target directory and activates any service files found in the package.
+// It also handles user interaction for enabling services and setting service name suffixes.
 func CopyPackageActivateService(mountDir string, packageConfig *configuration.PackageConfig, firstPartition bool) error {
 	var targetDirectoryFullPath string
 	var err error
@@ -49,7 +51,7 @@ func CopyPackageActivateService(mountDir string, packageConfig *configuration.Pa
 		if err != nil {
 			return fmt.Errorf("failed to determine relative path for target directory: %v", err)
 		}
-		packageConfig.TargetDirectory = filepath.ToSlash(relPath) + "/"
+		packageConfig.TargetDirectory = filepath.Join(relPath, "") + string(os.PathSeparator)
 	} else {
 		targetDirectoryFullPath = filepath.Join(mountDir, packageConfig.TargetDirectory)
 		err := os.MkdirAll(targetDirectoryFullPath, os.ModePerm)
@@ -260,6 +262,8 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	return nil
 }
 
+// findAllFilesInZip checks if all specified files exist in the zip archive.
+// It returns an error if any of the files are not found.
 func findAllFilesInZip(zipReader *zip.Reader, targetFileNames []string) error {
 	fileMap := make(map[string]*zip.File, len(zipReader.File))
 	for _, file := range zipReader.File {
@@ -283,9 +287,8 @@ func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir s
 
 	for _, file := range zipReader.File {
 		targetFilePath := filepath.Join(targetDir, file.Name)
-		//fmt.Println("unzipping file ", targetFilePath)
 
-		if !helper.IsWithinRootDir(targetDir, targetFilePath) { // Check if the file is within the target directory
+		if !helper.IsWithinRootDir(targetDir, targetFilePath) {
 			return "", fmt.Errorf("invalid file path")
 		}
 		if file.FileInfo().IsDir() {
@@ -361,12 +364,6 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 			return fmt.Errorf("unable to copy file %s: %v", srcZipFile.Name, err)
 		}
 	}
-	// TODO do we want to change permissions if the file already exists?
-	// Set the file permissions
-	//err = os.Chmod(destFilePath, fileMode)
-	//if err != nil {
-	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
-	//}
 	return nil
 }
 

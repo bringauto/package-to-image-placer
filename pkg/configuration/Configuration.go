@@ -87,6 +87,7 @@ func CreateConfigurationFile(config Configuration) (string, error) {
 	return path, nil
 }
 
+// UpdateConfigurationFile Updates the configuration file with the given path
 func UpdateConfigurationFile(config Configuration, path string) error {
 	log.Printf("Updating configuration file %s\n", path)
 	file, err := os.Create(path)
@@ -104,30 +105,56 @@ func UpdateConfigurationFile(config Configuration, path string) error {
 	return nil
 }
 
+// LoadConfigurationFile Loads the configuration file from the given path
 func ValidateConfiguration() error {
-	// TODO rework checks
+	if err := validatePaths(); err != nil {
+		return err
+	}
+	if err := validateSourceAndTarget(); err != nil {
+		return err
+	}
+	if err := validatePackagesAndPartitions(); err != nil {
+		return err
+	}
+	if err := validateLogPath(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// LoadConfigurationFile Loads the configuration file from the given path
+func validatePaths() error {
 	if Config.Target == "" {
 		return fmt.Errorf("target image path is missing, start with -h to see arguments")
 	}
 	if Config.Target == Config.Source {
 		return fmt.Errorf("source and target image paths are the same")
 	}
+	return nil
+}
+
+// validateSourceAndTarget validates the source and target paths
+func validateSourceAndTarget() error {
 	if Config.Source != "" && Config.NoClone {
 		return fmt.Errorf("source image and no-clone are mutually exclusive")
 	}
-
 	if Config.Source == "" && !Config.NoClone {
 		return fmt.Errorf("either 'source' or 'no-clone' must be defined, start with -h to see arguments")
-	} else if !Config.NoClone && !helper.DoesFileExists(Config.Source) {
+	}
+	if Config.Source != "" && !helper.DoesFileExists(Config.Source) {
 		return fmt.Errorf("source image path: %s does not exist", Config.Source)
 	}
 	if Config.NoClone && !helper.DoesFileExists(Config.Target) {
 		return fmt.Errorf("target image path: %s does not exist", Config.Target)
 	}
+	return nil
+}
 
+// validatePackagesAndPartitions validates the packages and partitions
+func validatePackagesAndPartitions() error {
 	if !Config.InteractiveRun {
 		if len(Config.Packages) == 0 {
-			return fmt.Errorf("no packages defined in configuration") // TODO check if packages exist
+			return fmt.Errorf("no packages defined in configuration")
 		}
 		for _, pkg := range Config.Packages {
 			if !helper.DoesFileExists(pkg.PackagePath) {
@@ -138,15 +165,18 @@ func ValidateConfiguration() error {
 			return fmt.Errorf("no partition numbers defined in configuration")
 		}
 	}
+	return nil
+}
 
-	// Config.LogPath is there to avoid the error message when the log path is not defined
-	if !helper.DoesFileExists(Config.LogPath) && Config.LogPath != "" {
+// validateLogPath validates the log path
+func validateLogPath() error {
+	if Config.LogPath != "" && !helper.DoesFileExists(Config.LogPath) {
 		return fmt.Errorf("log path does not exist")
-
 	}
 	return nil
 }
 
+// convertOneRelativePathToWorkingDir converts a relative path to an absolute path
 func convertOneRelativePathToWorkingDir(path string) string {
 	// Add location of configuration file to the path
 	if path == "" || filepath.IsAbs(path) {
@@ -158,6 +188,7 @@ func convertOneRelativePathToWorkingDir(path string) string {
 
 }
 
+// ConvertRelativePathsToWorkingDir converts all relative paths in the configuration to absolute paths
 func ConvertRelativePathsToWorkingDir() {
 	// Convert relative paths from configuration to relative paths to the working directory
 	Config.Source = convertOneRelativePathToWorkingDir(Config.Source)

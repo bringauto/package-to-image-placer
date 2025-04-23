@@ -283,6 +283,7 @@ func AreAllServiceFromConfigPresent(serviceFiles []string, configServiceNames []
 	return true
 }
 
+// CheckRequiredServicesEnabled checks if the required services of the newly added services are enabled.
 func CheckRequiredServicesEnabled(mountDir string, serviceNames []string) error {
 	log.Printf("Checking if the required services of the newly added services are enabled.")
 	for _, serviceName := range serviceNames {
@@ -310,6 +311,7 @@ func CheckRequiredServicesEnabled(mountDir string, serviceNames []string) error 
 	return nil
 }
 
+// isServiceEnabled checks if the service is enabled by checking if the symlink exists in the wants or requires directory.
 func isServiceEnabled(mountDir, serviceName string) (bool, error) {
 	// Define the patterns to search for
 	servicePath := filepath.Join(mountDir, "etc/systemd/system")
@@ -338,6 +340,7 @@ func isServiceEnabled(mountDir, serviceName string) (bool, error) {
 	return false, nil
 }
 
+// isTargetEnabled checks if the target is enabled by checking if the symlink exists in the target's wants or requires directory.
 func isTargetEnabled(mountDir, targetName string) bool {
 	servicePath := filepath.Join(mountDir, "etc/systemd/system")
 	wantsPath := filepath.Join(servicePath, targetName+".wants")
@@ -351,6 +354,7 @@ func isTargetEnabled(mountDir, targetName string) bool {
 	return false
 }
 
+// parseRequiredOption parses the Requires option from the service file and returns a slice of required services.
 func parseRequiredOption(serviceFile string) ([]string, error) {
 	opts, err := parseServiceFile(serviceFile)
 	if err != nil {

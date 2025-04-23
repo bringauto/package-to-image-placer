@@ -131,12 +131,6 @@ func CopyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	if err := destFile.Sync(); err != nil {
 		return fmt.Errorf("failed to flush data to service file: %v", err)
 	}
-	// TODO do we want to change permissions if the file already exists?
-	// Set the file permissions
-	//err = os.Chmod(destFilePath, fileMode)
-	//if err != nil {
-	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
-	//}
 	return nil
 }
 
