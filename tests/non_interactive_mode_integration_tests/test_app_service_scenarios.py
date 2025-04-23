@@ -1,5 +1,4 @@
 import os
-from time import sleep
 from test_utils.test_utils import (
     run_package_to_image_placer,
     create_test_package,
@@ -97,7 +96,6 @@ def test_03_write_packages_with_services_with_override(package_to_image_placer_b
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
 
     assert result.returncode == 0
-    sleep(1000)
     assert inspect_image(config)
 
 
