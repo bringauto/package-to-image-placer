@@ -60,13 +60,17 @@ When passing arguments through the command line, it is recommended to use the `-
 
 > Command line arguments are overriding the config file values.
 
-### Tests
+## Tests
+
+### Unit tests
 
 To run all unit tests, run:
 
 ```bash
 go test ./...
 ```
+
+### Integration tests
 
 To run integration tests, refer to the [tests/README.md](tests/README.md) file.
 
