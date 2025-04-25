@@ -82,11 +82,11 @@ The structure of the configuration file is defined in JSON format as follows:
 {
   "source": "<source-image-path>",
   "target": "<target-image-path>",
-  "no-clone": <bool>,
+  "no-clone": "<bool>",
   "packages": [
     {
      "package-path": "package-path.zip",
-     "enable-services": <bool>,
+     "enable-services": "<bool>",
      "service-name-suffix": "<service-name-suffix>",
      "target-directory": "<target-directory>",
      "overwrite-files": [
@@ -96,7 +96,7 @@ The structure of the configuration file is defined in JSON format as follows:
     }
   ],
   "partition-numbers": [
-    <partition-number>
+    "<partition-number>"
   ],
   "configuration_packages": [
     {
