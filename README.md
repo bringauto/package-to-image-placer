@@ -98,7 +98,7 @@ The structure of the configuration file is defined in JSON format as follows:
   "partition-numbers": [
     "<partition-number>"
   ],
-  "configuration_packages": [
+  "configuration-packages": [
     {
      "package-path": "configuration-package-path.zip",
      "overwrite-files": [
