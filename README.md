@@ -60,7 +60,7 @@ When passing arguments through the command line, it is recommended to use the `-
 
 > Command line arguments are overriding the config file values.
 
-**For comprehensive details about input data requirements and a practical mock use case, please consult the [Use Case Example Documentation](doc/UseCaseExample.md).**
+For the mock use case, please consult the [Use Case Example Documentation](doc/UseCaseExample.md).
 
 ## Tests
 
@@ -117,16 +117,20 @@ The structure of the configuration file is defined in JSON format as follows:
 }
 ```
 
+* The `source` or `target` in the case of `-no-clone` must be a valid image file using a GPT partition table and must have at least one partition with an Ext4 filesystem, as the tool can only write to this filesystem. If you want to enable services from the copied package, the destination partition must contain the directories `/etc/systemd/system/` and `/etc/systemd/system/multi-user.target.wants/`, where the service files will be copied.
+* The `packages` and `configuration-packages` must be valid zip files containing the files to be copied to the image. Additionally, a package can contain a service file that can be activated in the image. The service file must be included in the package and must have a `.service` extension. If a configuration package contains a service file, it is processed as a normal file and is simply copied to the image, not activated as a service.
+* The `service-name-suffix` is used to add a suffix to the service file name and thus avoid name conflicts. The suffix is added to the service file name in the image. For example, if the service file name is `my-service.service` and the suffix is `test`, the service file name in the image will be `my-service-test.service`. The suffix must not start with a hyphen.
+* The `overwrite-files` paths are relative to their location within the package zip file. If a file already exists in the image and is not listed under `overwrite-files`, an error will occur. However, if the file is included in `overwrite-files`, it will be copied to the image, overwriting the existing file regardless of its presence.
+* The `partition-numbers` must be valid partition numbers in the image. The partition numbers are 1-based, meaning the first partition is 1, the second is 2, and so on.
 * Paths in the configuration file can be absolute or relative to the location of the configuration file.
-* Overwrite files paths are relative to location in package zip-file.
-* Difference between package and configuration packages is that the configuration packages are not placed in the specified directory with the package name, and are always placed into the root of the image and services from them can not be activated.
+* The difference between package and configuration packages is that the configuration packages are not placed in the specified directory with the package name, and are always placed into the root of the image and services from them cannot be activated.
 
 ## Services
 
 The tool can activate service files in the image.
-The service files are activated by copying them to `/etc/system/systemd/` and creating symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
+The service files are activated by copying them to `/etc/systemd/system/` and creating a symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
 
-The paths in the image are updated based on `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
+The paths in the image are updated based on the `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
 
 ### Service Requirements
 
