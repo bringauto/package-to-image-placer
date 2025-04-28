@@ -43,11 +43,70 @@ func AllDepsInstalled() error {
 	return nil
 }
 
+// ValidSourceImage checks if the source image exists and is a non empty file.
+// Returns an error if the source image does not exist, is a directory or is empty.
+func ValidSourceImage(imagePath string) error {
+	if !DoesFileExists(imagePath) {
+		return fmt.Errorf("source image file does not exist: %s", imagePath)
+	}
+	fileInfo, err := os.Stat(imagePath)
+	if err != nil {
+		return err
+	}
+	if fileInfo.IsDir() {
+		return fmt.Errorf("source image is a directory: %s", imagePath)
+	}
+	if fileInfo.Size() == 0 {
+		return fmt.Errorf("source image file is empty: %s", imagePath)
+	}
+	return nil
+}
+
+// RemoveInvalidOutputImage removes the output image if it exists.
+// Returns an error if the output image exists and cannot be removed.
+func RemoveInvalidOutputImage(outputImage string, noClone bool) error {
+	if DoesFileExists(outputImage) && !noClone {
+		err := os.Remove(outputImage)
+		if err != nil {
+			return fmt.Errorf("failed to remove invalid output image: %s", outputImage)
+		}
+	}
+	return nil
+}
+
+// GetTargetArchiveDirName returns the mount directory for the given image path.
+func GetTargetArchiveDirName(targetDir string, archivePath string, standardPackage bool) string {
+	if standardPackage {
+		return filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
+	}
+	return targetDir
+}
+
 // SplitStringPreserveSubstrings splits a string into substrings while preserving substrings in quotes.
 // e.g. "'a b' c" -> ["'a b'", "c"]
 func SplitStringPreserveSubstrings(input string) []string {
 	re := regexp.MustCompile(`"[^"]*"|\S+`)
 	return re.FindAllString(input, -1)
+}
+
+func RemoveMountDirAndPackageName(path string, mountDir string, packageDir string, packagePath string) string {
+	path = strings.TrimPrefix(path, mountDir)
+
+	path = strings.TrimPrefix(path, "/")
+	packageDir = strings.TrimPrefix(packageDir, "/")
+	path = strings.TrimPrefix(path, packageDir)
+
+	path = strings.TrimPrefix(path, "/")
+	packageName := strings.TrimSuffix(filepath.Base(packagePath), ".zip")
+	path = strings.TrimPrefix(path, packageName)
+
+	if path == "" {
+		path = "/"
+	} else if path[0] != '/' {
+		path = "/" + path
+	}
+
+	return path
 }
 
 // CopyFile copies a file from the source path to the destination path with the specified file mode.
@@ -72,12 +131,6 @@ func CopyFile(destFilePath, srcFilePath string, fileMode os.FileMode) error {
 	if err := destFile.Sync(); err != nil {
 		return fmt.Errorf("failed to flush data to service file: %v", err)
 	}
-	// TODO do we want to change permissions if the file already exists?
-	// Set the file permissions
-	//err = os.Chmod(destFilePath, fileMode)
-	//if err != nil {
-	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
-	//}
 	return nil
 }
 

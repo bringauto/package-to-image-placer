@@ -16,15 +16,15 @@ import (
 )
 
 func main() {
-	config, err := parseArguments(os.Args[1:])
+	err := parseArguments(os.Args[1:])
 	if err != nil {
 		log.Fatalf("Error parsing arguments: %v", err)
 	}
-	err = configuration.ValidateConfiguration(config)
+	err = configuration.ValidateConfiguration()
 	if err != nil {
 		log.Fatalf("Configuration validation error: %v", err)
 	}
-	logFile, err := setupLogFile(config.LogPath)
+	logFile, err := setupLogFile(configuration.Config.LogPath)
 	if err != nil {
 		log.Fatalf("Error setting up log file: %v", err)
 	}
@@ -37,28 +37,59 @@ func main() {
 	}
 
 	newConfigFilePath := ""
-	if config.InteractiveRun {
-		user.SetUpCommandline()
-		defer user.CleanUpCommandLine()
-		config.Packages, err = user.SelectFilesInDir(config.PackageDir)
+	if configuration.Config.InteractiveRun {
+		log.Printf("Selecting standard packages.\n")
+		header_base := "Choose standard package to copy."
+		packages, err := user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
+		log.Printf("Selected standard packages: %v\n", packages)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 			return
 		}
+		for _, pkg := range packages {
+			packageConfig := configuration.PackageConfig{PackagePath: pkg}
+			configuration.Config.Packages = append(configuration.Config.Packages, packageConfig)
+		}
+
+		log.Printf("Selecting configuration packages.\n")
+		header_base = "Choose configuration package to copy."
+		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
+		log.Printf("Selected configuration packages: %v\n", packages)
+		if err != nil {
+			log.Printf("Error: %s\n", err)
+			return
+		}
+		for _, pkg := range packages {
+			packageConfig := configuration.ConfigurationPackage{PackagePath: pkg}
+			configuration.Config.ConfigurationPackages = append(configuration.Config.ConfigurationPackages, packageConfig)
+		}
+
+		if len(configuration.Config.Packages) == 0 && len(configuration.Config.ConfigurationPackages) == 0 {
+			log.Printf("No packages selected. Exiting...\n")
+			return
+		}
 
 		imagePath := ""
-		if config.NoClone {
-			imagePath = config.Target
+		if configuration.Config.NoClone {
+			imagePath = configuration.Config.Target
 		} else {
-			imagePath = config.Source
-		}
-		config.PartitionNumbers, err = user.SelectPartitions(imagePath)
-		if err != nil {
-			log.Printf("Error while selecting partitions: %s\n", err)
+			imagePath = configuration.Config.Source
 		}
 
-		if user.GetUserConfirmation("\nDo you want to save the configuration?") {
-			newConfigFilePath, err = configuration.CreateConfigurationFile(config)
+		err = helper.ValidSourceImage(imagePath)
+		if err != nil {
+			helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
+			log.Fatalf("Error: %s\n", err)
+		}
+
+		configuration.Config.PartitionNumbers, err = user.SelectPartitions(imagePath)
+		if err != nil {
+			helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
+			log.Fatalf("Error while selecting partitions: %s\n", err)
+		}
+
+		if user.GetUserConfirmation("Do you want to save the configuration?") {
+			newConfigFilePath, err = configuration.CreateConfigurationFile(configuration.Config)
 			if err != nil {
 				log.Printf("Error: %s\n", err)
 			}
@@ -66,62 +97,70 @@ func main() {
 
 	}
 
-	log.Printf("Packages: \n\t%v\n\twill be copied to partitions: %v\n", strings.Join(config.Packages, "\n\t"), config.PartitionNumbers)
-	if config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
+	// Create a slice of package paths from configuration.Config.Packages and configuration.Config.ConfigurationPackages
+	var standardPackagePaths []string
+	var configurationPackagePaths []string
+
+	for _, pkg := range configuration.Config.Packages {
+		standardPackagePaths = append(standardPackagePaths, pkg.PackagePath)
+	}
+	for _, pkg := range configuration.Config.ConfigurationPackages {
+		configurationPackagePaths = append(configurationPackagePaths, pkg.PackagePath)
+	}
+	log.Printf("\n%d standard packages: \n\t%v\n%d configuration packages: \n\t%v\nwill be copied to partitions: %v\n", len(standardPackagePaths), strings.Join(standardPackagePaths, "\n\t"), len(configurationPackagePaths), strings.Join(configurationPackagePaths, "\n\t"), configuration.Config.PartitionNumbers)
+
+	if configuration.Config.InteractiveRun && !user.GetUserConfirmation("Do you want to continue?") {
 		log.Printf("Operation cancelled by user\n")
 		return
 	}
 
-	if !config.NoClone {
-		if helper.DoesFileExists(config.Target) {
-			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", config.Target)
-			if config.InteractiveRun && !user.GetUserConfirmation(askUser) {
+	if !configuration.Config.NoClone {
+		if helper.DoesFileExists(configuration.Config.Target) {
+			askUser := fmt.Sprintf("File %s already exists. Do you want to delete it?", configuration.Config.Target)
+			if configuration.Config.InteractiveRun && !user.GetUserConfirmation(askUser) {
 				log.Fatalf("file already exists and user chose not to delete it")
 			}
-			if err := os.Remove(config.Target); err != nil {
+			if err := os.Remove(configuration.Config.Target); err != nil {
 				log.Fatalf("unable to delete existing file: %s", err)
 			}
 		}
-		err := image.CloneImage(config.Source, config.Target)
+		err := image.CloneImage(configuration.Config.Source, configuration.Config.Target)
 		if err != nil {
-			log.Printf("Error: %s\n", err)
-			return
+			helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
+			log.Fatalf("Error: %s\n", err)
 		}
 	}
 
-	err = image.CopyPackageToImagePartitions(&config)
+	err = image.CopyPackagesToImagePartitions()
 	if err != nil {
-		log.Printf("Error: %s\n", err)
+		helper.RemoveInvalidOutputImage(configuration.Config.Target, configuration.Config.NoClone)
+		log.Fatalf("Error: %s\n", err)
 		return
 	}
 
 	log.Printf("All packages copied successfully\n")
 
 	if newConfigFilePath != "" {
-		err = configuration.UpdateConfigurationFile(config, newConfigFilePath)
+		err = configuration.UpdateConfigurationFile(configuration.Config, newConfigFilePath)
 		if err != nil {
-			log.Printf("Error: %s\n", err)
+			log.Fatalf("Error: %s\n", err)
 		}
 	}
 }
 
-func parseArguments(args []string) (configuration.Configuration, error) {
-	var config configuration.Configuration
+func parseArguments(args []string) error {
 	flags := flag.NewFlagSet("package-to-image-placer", flag.ContinueOnError)
-
 	configFile := flags.String("config", "", "Path to configuration file (non-interactive mode)")
 	targetImage := flags.String("target", "", "Target image path (will be created).")
 	sourceImage := flags.String("source", "", "Source image")
 	noClone := flags.Bool("no-clone", false, "Do not clone source image. Target image must exist. If operation is not successful, may cause damage the image")
-	overwrite := flags.Bool("overwrite", false, "Overwrite files in target image")
-	targetDirectory := flags.String("target-dir", "", "Target directory in image (non-interactive mode)")
-	packageDirectory := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
+	packageDir := flags.String("package-dir", "./", "Default package directory, from which package finder starts (interactive mode)")
 	logPath := flags.String("log-path", "./", "Path to log file")
 	showUsage := flags.Bool("h", false, "Show usage")
 
 	err := flags.Parse(args)
 	if err != nil {
-		return config, err
+		return err
 	}
 
 	if *showUsage {
@@ -132,44 +171,52 @@ func parseArguments(args []string) (configuration.Configuration, error) {
 		os.Exit(0)
 	}
 
-	interactiveRun := true
 	if *configFile != "" {
-		interactiveRun = false
 		file, err := os.Open(*configFile)
 		if err != nil {
-			return config, fmt.Errorf("error opening config file: %v", err)
+			return fmt.Errorf("error opening configuration.Config file: %v", err)
 		}
 		defer file.Close()
 
 		decoder := json.NewDecoder(file)
-		err = decoder.Decode(&config)
+		err = decoder.Decode(&configuration.Config)
 		if err != nil {
-			return config, fmt.Errorf("error decoding config file: %v", err)
+			return fmt.Errorf("error decoding configuration.Config file: %v", err)
 		}
+
+		configuration.Config.InteractiveRun = false
+		configuration.Config.ConfigFile = *configFile
+		configuration.ConvertRelativePathsToWorkingDir()
 	}
 
 	if *sourceImage != "" {
-		config.Source = *sourceImage
+		configuration.Config.Source = *sourceImage
 	}
 	if *targetImage != "" {
-		config.Target = *targetImage
+		configuration.Config.Target = *targetImage
 	}
-	//if *overwrite {
-	config.Overwrite = *overwrite
-	//}
-	if *targetDirectory != "" {
-		config.TargetDirectory = *targetDirectory
+	if *packageDir != "" {
+		configuration.Config.PackageDir = *packageDir
 	}
-	config.NoClone = *noClone
-	config.PackageDir = *packageDirectory
-	config.LogPath = *logPath
+	if *logPath != "./" {
+		configuration.Config.LogPath = *logPath
+	}
 
-	config.InteractiveRun = interactiveRun
-	return config, nil
+	// Check if the overwrite flag has been set
+	noCloneSet := false
+	flags.Visit(func(f *flag.Flag) {
+		if f.Name == "no-clone" {
+			noCloneSet = true
+		}
+	})
+	if noCloneSet {
+		configuration.Config.NoClone = *noClone
+	}
+	return nil
 }
 
 func setupLogFile(path string) (*os.File, error) {
-	logFile, err := os.OpenFile(filepath.Join(path, "image_to_package_placer.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(filepath.Join(path, "package_to_image_placer.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, err
 	}

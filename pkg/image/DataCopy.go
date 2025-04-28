@@ -3,7 +3,6 @@ package image
 import (
 	"archive/zip"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"io"
 	"log"
 	"os"
@@ -13,19 +12,24 @@ import (
 	"package-to-image-placer/pkg/service"
 	"package-to-image-placer/pkg/user"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 const timeout = 60 * time.Second
+const mountMaxRetries = 3
+const mountRetryDelay = 2 * time.Second
 
-// CopyPackageToImagePartitions copies the specified packages to the specified partitions in the configuration.
+// CopyPackagesToImagePartitions copies the specified packages to the specified partitions in the configuration.
 // It iterates over each partition and package, calling MountPartitionAndCopyPackages for each combination.
-func CopyPackageToImagePartitions(config *configuration.Configuration) error {
-	for _, partition := range config.PartitionNumbers {
+func CopyPackagesToImagePartitions() error {
+	for _, partition := range configuration.Config.PartitionNumbers {
 		log.Printf("Copying to partition: %d\n", partition)
-		err := MountPartitionAndCopyPackages(partition, config)
+		err := MountPartitionAndCopyPackages(partition, partition == configuration.Config.PartitionNumbers[0])
 		if err != nil {
 			return err
 		}
@@ -33,9 +37,79 @@ func CopyPackageToImagePartitions(config *configuration.Configuration) error {
 	return nil
 }
 
+// CopyPackageActivateService copies the package to the target directory and activates any service files found in the package.
+// It also handles user interaction for enabling services and setting service name suffixes.
+func CopyPackageActivateService(mountDir string, packageConfig *configuration.PackageConfig, firstPartition bool) error {
+	var targetDirectoryFullPath string
+	var err error
+	if configuration.Config.InteractiveRun && packageConfig.IsStandardPackage && firstPartition {
+		targetDirectoryFullPath, err = user.SelectTargetDirectory(mountDir, mountDir, packageConfig.PackagePath)
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(mountDir, targetDirectoryFullPath)
+		if err != nil {
+			return fmt.Errorf("failed to determine relative path for target directory: %v", err)
+		}
+		packageConfig.TargetDirectory = filepath.Join(relPath, "") + string(os.PathSeparator)
+	} else {
+		targetDirectoryFullPath = filepath.Join(mountDir, packageConfig.TargetDirectory)
+		err := os.MkdirAll(targetDirectoryFullPath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("failed to create target directory: %v", err)
+		}
+	}
+	log.Printf("Copying package to target directory: %s\n", targetDirectoryFullPath)
+	if !helper.IsWithinRootDir(mountDir, targetDirectoryFullPath) {
+		return fmt.Errorf("target directory is not within the mounted partition")
+	}
+
+	serviceFile, err := handleArchive(packageConfig, mountDir, targetDirectoryFullPath)
+	if err != nil {
+		return err
+	}
+
+	// Configuration packages are not allowed to have services
+	if !packageConfig.IsStandardPackage {
+		return nil
+	}
+
+	if serviceFile == "" {
+		log.Printf("No service file found in the package: %s\n", packageConfig.PackagePath)
+
+		// check if the package has disabled services
+		if packageConfig.EnableServices {
+			return fmt.Errorf("package %s has no service file, but services are enabled", packageConfig.PackagePath)
+		}
+		return nil
+	}
+
+	if configuration.Config.InteractiveRun && firstPartition {
+		packageConfig.EnableServices = user.GetUserConfirmation("Do you want to enable services for package " + packageConfig.PackagePath + "?")
+		if packageConfig.EnableServices {
+			packageConfig.ServiceNameSuffix, err = user.ReadStringFromUser("Enter service name suffix (leave empty for none): ")
+			if err != nil {
+				return fmt.Errorf("error reading service name suffix: %v", err)
+			}
+		}
+	}
+
+	if packageConfig.EnableServices {
+		// Service name suffix should not start with a hyphen
+		if strings.HasPrefix(packageConfig.ServiceNameSuffix, "-") {
+			return fmt.Errorf("service name suffix should not start with a hyphen")
+		}
+		err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, packageConfig)
+		if err != nil {
+			return fmt.Errorf("error while activating service: %v", err)
+		}
+	}
+	return nil
+}
+
 // MountPartitionAndCopyPackages mounts the specified partition, copies the package to it, and activates any service files found in the package.
 // It handles signals for unmounting the partition and ensures the directory is populated before proceeding.
-func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Configuration) error {
+func MountPartitionAndCopyPackages(partitionNumber int, firstPartition bool) error {
 	mountDir, err := os.MkdirTemp("", "mount-dir-")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %v", err)
@@ -53,7 +127,7 @@ func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Co
 
 	errChan := make(chan string)
 	go func() {
-		errChan = mountPartition(config.Target, partitionNumber, mountDir, errChan)
+		errChan = mountPartition(configuration.Config.Target, partitionNumber, mountDir, errChan)
 	}()
 
 	populatedChan := make(chan error)
@@ -79,97 +153,73 @@ func MountPartitionAndCopyPackages(partitionNumber int, config *configuration.Co
 		unmount(mountDir)
 	}()
 
-	var targetDirectoryFullPath string
-	if config.InteractiveRun {
-		targetDirectoryFullPath, err = user.SelectTargetDirectory(mountDir, mountDir)
+	for i := range configuration.Config.Packages {
+		configuration.Config.Packages[i].IsStandardPackage = true
+		err = CopyPackageActivateService(mountDir, &configuration.Config.Packages[i], firstPartition)
 		if err != nil {
-			return err
+			return fmt.Errorf("error while copying package: %v", err)
 		}
-		config.TargetDirectory = strings.TrimPrefix(targetDirectoryFullPath, mountDir) + "/"
-	} else {
-		targetDirectoryFullPath = filepath.Join(mountDir, config.TargetDirectory)
-		err := os.MkdirAll(targetDirectoryFullPath, os.ModePerm)
+	}
+	// tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
+	for i := range configuration.Config.ConfigurationPackages {
+		tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
+		tmpPackage.PackagePath = configuration.Config.ConfigurationPackages[i].PackagePath
+		tmpPackage.OverwriteFiles = configuration.Config.ConfigurationPackages[i].OverwriteFiles
+		err = CopyPackageActivateService(mountDir, &tmpPackage, firstPartition)
 		if err != nil {
-			return fmt.Errorf("failed to create target directory: %v", err)
+			return fmt.Errorf("error while copying configuration package: %v", err)
 		}
+		configuration.Config.ConfigurationPackages[i].OverwriteFiles = tmpPackage.OverwriteFiles
 	}
-
-	if !helper.IsWithinRootDir(mountDir, targetDirectoryFullPath) {
-		return fmt.Errorf("target directory is not within the mounted partition")
-	}
-
-	var allFoundServiceFiles []string
-	for _, archivePath := range config.Packages {
-		serviceFiles, err := handleArchive(archivePath, mountDir, targetDirectoryFullPath, config.Overwrite)
-		if err != nil {
-			return err
-		}
-
-		allFoundServiceFiles = append(allFoundServiceFiles, serviceFiles...)
-
-		for _, serviceFile := range serviceFiles {
-			if config.InteractiveRun {
-				if user.GetUserConfirmation(fmt.Sprintf("\nDo you want to activate service: %s", serviceFile)) {
-					err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
-					if err != nil {
-						return fmt.Errorf("error while activating service: %v", err)
-					}
-					config.ServiceNames = append(config.ServiceNames, filepath.Base(serviceFile))
-				}
-			} else if service.IsServiceFileInList(serviceFile, config.ServiceNames) {
-				err = service.AddService(serviceFile, mountDir, targetDirectoryFullPath, config.Overwrite)
-				if err != nil {
-					return fmt.Errorf("error while activating service: %v", err)
-				}
-			}
-		}
-	}
-	if !service.AreAllServiceFromConfigPresent(allFoundServiceFiles, config.ServiceNames) {
-		baseServiceFiles := make([]string, len(allFoundServiceFiles))
-		for i, serviceFile := range allFoundServiceFiles {
-			baseServiceFiles[i] = filepath.Base(serviceFile)
-		}
-		return fmt.Errorf("not all services from the config are present in the package.\n\tFound services:  %v\n\tConfig services: %v\n", baseServiceFiles, config.ServiceNames)
-	}
-
-	err = service.CheckRequiredServicesEnabled(mountDir, config.ServiceNames)
-	if err != nil {
-		return fmt.Errorf("error while checking required services: %v", err)
-	}
-
 	return nil
 }
 
 // handleArchive handles the extraction of the archive file to the target directory.
-// It checks for sufficient free space and returns a list of service files found in the archive.
-func handleArchive(archivePath, mountDir, targetDir string, overwrite bool) ([]string, error) {
+// It checks for sufficient free space and returns a service file if found.
+func handleArchive(packageConfig *configuration.PackageConfig, mountDir string, targetDir string) (string, error) {
+	archivePath := packageConfig.PackagePath
 	zipReader, err := zip.OpenReader(archivePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open zip file: %v", err)
+		return "", fmt.Errorf("failed to open zip file: %v", err)
 	}
 	defer zipReader.Close()
+
+	err = findAllFilesInZip(&zipReader.Reader, packageConfig.OverwriteFiles)
+	if err != nil {
+		return "", err
+	}
 
 	packageSize := getArchiveSize(zipReader)
 	err = checkFreeSize(mountDir, packageSize)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	targetArchiveDir := filepath.Join(targetDir, strings.TrimSuffix(filepath.Base(archivePath), ".zip"))
+
+	targetArchiveDir := helper.GetTargetArchiveDirName(targetDir, archivePath, packageConfig.IsStandardPackage)
+
 	os.MkdirAll(targetArchiveDir, os.ModePerm)
-	serviceFiles, err := decompressZipArchive(zipReader, targetArchiveDir, overwrite)
+	serviceFile, err := decompressZipArchiveAndReturnService(zipReader, targetArchiveDir, mountDir, packageConfig)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return serviceFiles, nil
+	return serviceFile, nil
 }
 
 // mountPartition mounts the specified partition to the mount directory using guestmount.
 // It sends any errors encountered to the provided error channel.
 func mountPartition(targetImageName string, partitionNumber int, mountDir string, errChan chan string) chan string {
 	log.Printf("Mounting partition to %s", mountDir)
-	// TODO set userId in config??
-	cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
-	_, err := helper.RunCommand(cmd, false)
+	var err error
+	for range mountMaxRetries {
+		cmd := fmt.Sprintf("guestmount -a %s -m /dev/sda%d -o uid=%d -o gid=%d --rw %s --no-fork", targetImageName, partitionNumber, unix.Getuid(), unix.Getgid(), mountDir)
+		_, err = helper.RunCommand(cmd, false)
+		if err == nil {
+			break
+		}
+		log.Printf("Error mounting partition %d: %v. Retrying in %v...", partitionNumber, err, mountRetryDelay)
+		time.Sleep(mountRetryDelay)
+	}
+
 	if err != nil {
 		errChan <- err.Error()
 	}
@@ -178,9 +228,12 @@ func mountPartition(targetImageName string, partitionNumber int, mountDir string
 
 // unmount unmounts the specified mount directory using guestunmount.
 func unmount(mountDir string) {
+	syscall.Sync()
 	log.Printf("Unmounting partition")
 	helper.RunCommand("guestunmount "+mountDir, true)
-	waitUntilDirectoryIsEmpty(mountDir, timeout)
+
+	waitUntilDirectoryIsUnmounted(mountDir, timeout)
+	time.Sleep(time.Second) // Give it a moment to clear
 }
 
 // getArchiveSize calculates the total uncompressed size of the files in the zip archive.
@@ -209,53 +262,79 @@ func checkFreeSize(mountDir string, packageSize uint64) error {
 	return nil
 }
 
-// decompressZipArchive extracts the files from the zip archive to the target directory.
+// findAllFilesInZip checks if all specified files exist in the zip archive.
+// It returns an error if any of the files are not found.
+func findAllFilesInZip(zipReader *zip.Reader, targetFileNames []string) error {
+	fileMap := make(map[string]*zip.File, len(zipReader.File))
+	for _, file := range zipReader.File {
+		if !file.FileInfo().IsDir() {
+			fileMap["/"+file.Name] = file
+		}
+	}
+
+	for _, targetFileName := range targetFileNames {
+		if _, exists := fileMap[targetFileName]; !exists {
+			return fmt.Errorf("file %s not found in the zip archive %s", targetFileName, zipReader.Comment)
+		}
+	}
+	return nil
+}
+
+// decompressZipArchiveAndReturnService extracts the files from the zip archive to the target directory.
 // It returns a list of service files found in the archive.
-func decompressZipArchive(zipReader *zip.ReadCloser, targetDir string, overwrite bool) ([]string, error) {
-	var serviceFiles []string
+func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir string, mountDir string, packageConfig *configuration.PackageConfig) (string, error) {
+	serviceFile := ""
 
 	for _, file := range zipReader.File {
 		targetFilePath := filepath.Join(targetDir, file.Name)
-		//fmt.Println("unzipping file ", targetFilePath)
 
-		if !helper.IsWithinRootDir(targetDir, targetFilePath) { // Check if the file is within the target directory
-			return nil, fmt.Errorf("invalid file path")
+		if !helper.IsWithinRootDir(targetDir, targetFilePath) {
+			return "", fmt.Errorf("invalid file path")
 		}
 		if file.FileInfo().IsDir() {
 			log.Printf("creating directory %s\n", targetFilePath)
 			if err := os.MkdirAll(targetFilePath, os.ModePerm); err != nil {
-				return nil, err
+				return "", err
 			}
 			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(targetFilePath), os.ModePerm); err != nil {
-			return nil, err
+			return "", err
 		}
-		if err := decompressZipFile(targetFilePath, file, overwrite); err != nil {
-			return nil, err
+		if err := decompressZipFile(targetFilePath, file, mountDir, packageConfig); err != nil {
+			return "", err
 		}
 		if strings.HasSuffix(file.Name, ".service") {
-			serviceFiles = append(serviceFiles, targetFilePath)
+			if serviceFile != "" {
+				return "", fmt.Errorf("multiple service files found in the package archive")
+			}
+			serviceFile = targetFilePath
 		}
 	}
-	return serviceFiles, nil
+	return serviceFile, nil
 }
 
 // decompressZipFile extracts a single file from the zip archive to the destination path.
 // It returns an error if the file already exists and overwrite is false.
-func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool) error {
+func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir string, packageConfig *configuration.PackageConfig) error {
 	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
-	if !overwrite {
-		_, err := os.Stat(destFilePath)
-		if err == nil {
-			return fmt.Errorf("file %s already exists. Use -overwrite flag to overwrite existing files.", destFilePath)
+	// Check if the destination file already exists
+	_, err := os.Stat(destFilePath)
+	if err == nil {
+		destFilePathInPackage := helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
+		if configuration.Config.InteractiveRun {
+			if user.GetUserConfirmation("File: " + destFilePathInPackage + " already exists. Do you want to overwrite it?") {
+				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, destFilePathInPackage)
+			} else {
+				return fmt.Errorf("file %s already exists and user chose not to overwrite", destFilePathInPackage)
+			}
 		}
-	} else {
-		// Remove the existing file or symlink if overwrite is true
-		err := os.Remove(destFilePath)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("unable to remove existing file %s: %v", destFilePath, err)
+		if slices.Contains(packageConfig.OverwriteFiles, destFilePathInPackage) {
+			os.Remove(destFilePath)
+			log.Printf("File %s already exists and is marked for overwrite", destFilePathInPackage)
+		} else {
+			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathInPackage)
 		}
 	}
 	srcFile, err := srcZipFile.Open()
@@ -285,12 +364,6 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, overwrite bool
 			return fmt.Errorf("unable to copy file %s: %v", srcZipFile.Name, err)
 		}
 	}
-	// TODO do we want to change permissions if the file already exists?
-	// Set the file permissions
-	//err = os.Chmod(destFilePath, fileMode)
-	//if err != nil {
-	// return fmt.Errorf("unable to set file permissions for %s: %v", destFilePath, err)
-	//}
 	return nil
 }
 
@@ -313,22 +386,32 @@ func waitUntilDirectoryIsPopulated(dirPath string, timeout time.Duration) error 
 	}
 }
 
-// waitUntilDirectoryIsEmpty waits until the directory is empty or the timeout is reached.
+// waitUntilDirectoryIsUnmounted waits until the directory is empty or the timeout is reached.
 // Use to make sure directory is unmounted before proceeding.
-func waitUntilDirectoryIsEmpty(dirPath string, timeout time.Duration) {
+func waitUntilDirectoryIsUnmounted(mountDir string, timeout time.Duration) {
 	start := time.Now()
+	log.Print("Waiting for directory to be empty...")
 	for {
-		populated, err := isDirectoryPopulated(dirPath)
-		if err != nil {
-			log.Printf("Error checking directory: %v", err)
-		}
-		if !populated {
+		// Check if the mount dir exists
+		if _, err := os.Stat(mountDir); os.IsNotExist(err) {
+			log.Printf("Directory %s does not exist, assuming unmounted", mountDir)
 			return
 		}
-		if time.Since(start) > timeout {
-			log.Printf("directory %s is not empty within the timeout period. Continuing", dirPath)
+		ls_output, err := helper.RunCommand(fmt.Sprintf("ls %q", mountDir), false)
+		if err != nil {
+			return
 		}
-		time.Sleep(100 * time.Millisecond) // Adjust the sleep duration as needed
+
+		if strings.TrimSpace(ls_output) == "" {
+			return
+		}
+
+		if time.Since(start) > timeout {
+			log.Printf("directory %s is not empty within the timeout period. Continuing", mountDir)
+			return
+		}
+		log.Print("Directory is not empty, waiting...")
+		time.Sleep(1 * time.Second) // Adjust the sleep duration as needed
 	}
 }
 

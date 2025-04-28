@@ -3,18 +3,20 @@ package user
 import (
 	"bufio"
 	"fmt"
-	"github.com/diskfs/go-diskfs"
-	"github.com/diskfs/go-diskfs/filesystem"
-	"github.com/koki-develop/go-fzf"
-	"golang.org/x/term"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"package-to-image-placer/pkg/helper"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/diskfs/go-diskfs"
+	"github.com/diskfs/go-diskfs/filesystem"
+	"github.com/koki-develop/go-fzf"
+	"golang.org/x/term"
 )
 
 const interactionTextColor = "\033[1;36m"
@@ -25,15 +27,14 @@ const colorReset = "\033[0m"
 // SelectFilesInDir allows the user to select multiple files in a directory.
 // It repeatedly prompts the user to select files until they choose to stop.
 // Returns a slice of selected file paths.
-func SelectFilesInDir(dir string) ([]string, error) {
+func SelectFilesInDir(dir string, header_base string) ([]string, error) {
 	var selectedFiles []string
 	chooseAnotherFile := true
 	for chooseAnotherFile {
-		selectedFile, err := SelectFile(dir, selectedFiles)
+		selectedFile, err := SelectFile(dir, selectedFiles, header_base)
 		if err != nil {
 			if err.Error() == "abort" {
-				fmt.Println("User aborted")
-				break
+				return selectedFiles, nil
 			}
 			return nil, err
 		}
@@ -76,7 +77,7 @@ func getDirsAndZips(dir string) ([]string, error) {
 // SelectFile allows the user to select a file from the specified directory.
 // It uses a fuzzy finder to present the files and directories to the user.
 // Returns the selected file path.
-func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
+func SelectFile(dir string, alreadySelectedItems []string, header_base string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
@@ -98,7 +99,7 @@ func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
 		}
 	}
 
-	header := "Choose file to copy. Press esc to quit.\nCurrent directory: " + absDir + "\n"
+	header := header_base + " Press esc to quit.\nCurrent directory: " + colorBlue + absDir + colorReset + "\n"
 
 	selectedFileIndex, err := fuzzySelectOne(header, displayItems)
 	if err != nil {
@@ -108,7 +109,7 @@ func SelectFile(dir string, alreadySelectedItems []string) (string, error) {
 	selectedFile := strings.TrimSpace(files[selectedFileIndex])
 	if isSelectedDir(selectedFile) {
 		newDir := filepath.Join(dir, selectedFile)
-		return SelectFile(newDir, alreadySelectedItems)
+		return SelectFile(newDir, alreadySelectedItems, header_base)
 	}
 	selectedFile = filepath.Join(absDir, selectedFile)
 	return selectedFile, nil
@@ -154,7 +155,10 @@ type partitionInfo struct {
 // It repeatedly prompts the user to select partitions until they choose to stop.
 // Returns a slice of selected partition numbers.
 func SelectPartitions(diskPath string) ([]int, error) {
-	allPartitions := getPartitionInfo(diskPath)
+	allPartitions, err := getPartitionInfo(diskPath)
+	if err != nil {
+		return nil, err
+	}
 	partitionInfo := make([]string, len(allPartitions))
 	for index, partition := range allPartitions {
 		partitionInfo[index] = fmt.Sprintf("Partition %d: %s\n\tFilesystem: '%s' Type: %s", partition.partitionNumber, partition.partitionUUID, partition.filesystemLabel, partition.filesystemType)
@@ -173,7 +177,7 @@ func SelectPartitions(diskPath string) ([]int, error) {
 				displayItems[i] = "[ ] " + item
 			}
 		}
-		selectedPartitionIndex, err := fuzzySelectOne("Select partition to which the package will be copied: ", displayItems)
+		selectedPartitionIndex, err := fuzzySelectOne("Select partition to which the package will be copied. Press esc to quit.\n", displayItems)
 		if err != nil {
 			if err.Error() == "abort" {
 				fmt.Println("User aborted")
@@ -204,7 +208,7 @@ func printSelectedPartitions(selectedPartitions []int) {
 // SelectTargetDirectory allows the user to select a directory to copy the package to.
 // The user can also create a new directory.
 // Returns the selected directory.
-func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
+func SelectTargetDirectory(rootDir, searchDir string, packagePath string) (string, error) {
 	// Validate that searchDir is within the rootDir
 	if !helper.IsWithinRootDir(rootDir, searchDir) {
 		return "", fmt.Errorf("attempt to navigate outside the allowed root directory")
@@ -219,7 +223,7 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	// Add options for current directory and creating a new directory
 	dirs = append([]string{"Select current directory", "Create new directory"}, dirs...)
 
-	header := "Select directory to copy package to. Press esc to quit.\nCurrent directory: \033[1;34m" + searchDir + "\n"
+	header := "Select directory to copy package to. Press esc to quit.\nPackage name: " + colorBlue + packagePath + colorReset + "\nCurrent directory: " + colorBlue + searchDir + colorReset + "\n"
 	idx, err := fuzzySelectOne(header, dirs)
 	if err != nil {
 		return "", err
@@ -246,14 +250,13 @@ func SelectTargetDirectory(rootDir, searchDir string) (string, error) {
 	} else {
 		// Recurse into the selected directory
 		nextDir := filepath.Join(searchDir, selectedDir)
-		return SelectTargetDirectory(rootDir, nextDir)
+		return SelectTargetDirectory(rootDir, nextDir, packagePath)
 	}
 }
 
 // ReadStringFromUser reads a string input from the user.
 // Returns the input string.
 func ReadStringFromUser(prompt string) (string, error) {
-	CleanUpCommandLineSilent()
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Printf(interactionTextColor + prompt + colorReset)
@@ -261,7 +264,6 @@ func ReadStringFromUser(prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	setUpCommandLineSilent()
 	return strings.TrimSpace(path), nil
 }
 
@@ -288,6 +290,19 @@ func getDirectories(path string, rootDir string) ([]string, error) {
 // GetUserConfirmation asks the user for confirmation. The message is displayed to the user.
 // Returns true if the user confirms, false otherwise.
 func GetUserConfirmation(message string) bool {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	defer signal.Stop(c)
+
+	go func() {
+		<-c
+		CleanUpCommandLine()
+		os.Exit(1)
+	}()
+
+	SetUpCommandline()
+	defer CleanUpCommandLine()
+
 	var b = make([]byte, 1)
 	fmt.Print(interactionTextColor + message + colorReset + " [Y|y to confirm, any other key to cancel]\n")
 	_, err := os.Stdin.Read(b)
@@ -301,7 +316,6 @@ func GetUserConfirmation(message string) bool {
 // SetUpCommandline sets up the command line for user interaction.
 // It configures the terminal to not cache characters.
 func SetUpCommandline() {
-	log.Printf("Setting up command line...")
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Printf("Warning: /dev/tty not available, skipping terminal setup")
 		return
@@ -311,25 +325,17 @@ func SetUpCommandline() {
 	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
 }
 
-func setUpCommandLineSilent() {
-	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
-	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
-}
-
 // CleanUpCommandLine reverts the terminal settings to their default state.
 func CleanUpCommandLine() {
-	log.Printf("Cleaning up command line...")
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Printf("Warning: /dev/tty not available, skipping terminal cleanup")
 		return
 	}
-	// Reset terminal settings
-	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
-	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
+	CleanUpCommandLineSilent()
 }
 
+// CleanUpCommandLineSilent reverts the terminal settings to their default state without printing messages.
 func CleanUpCommandLineSilent() {
-	// Reset terminal settings
 	exec.Command("stty", "-F", "/dev/tty", "sane").Run()
 	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
 }
@@ -354,12 +360,12 @@ func fuzzySelectOne(prompt string, items []string) (int, error) {
 
 // getPartitionInfo retrieves partition information from a disk image.
 // Returns a slice of partitionInfo structs.
-func getPartitionInfo(imagePath string) []partitionInfo {
+func getPartitionInfo(imagePath string) ([]partitionInfo, error) {
 	disk, _ := diskfs.Open(imagePath)
 	defer disk.Close()
 	table, err := disk.GetPartitionTable()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	var partitions []partitionInfo
 	for index, p := range table.GetPartitions() {
@@ -367,16 +373,27 @@ func getPartitionInfo(imagePath string) []partitionInfo {
 		fs, err := disk.GetFilesystem(partitionNumber)
 		if err != nil {
 			log.Printf("Error getting filesystem on partition %d: %s\n", partitionNumber, err)
+			fs = nil
 		}
 		partition := partitionInfo{
 			partitionNumber: partitionNumber,
 			partitionUUID:   p.UUID(),
-			filesystemType:  typeToString(fs.Type()),
-			filesystemLabel: fs.Label(),
+			filesystemType: func() string {
+				if fs != nil {
+					return typeToString(fs.Type())
+				}
+				return "Unknown"
+			}(),
+			filesystemLabel: func() string {
+				if fs != nil {
+					return fs.Label()
+				}
+				return "Unknown"
+			}(),
 		}
 		partitions = append(partitions, partition)
 	}
-	return partitions
+	return partitions, nil
 }
 
 // typeToString converts a filesystem.Type to a string representation.

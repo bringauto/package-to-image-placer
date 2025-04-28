@@ -2,13 +2,17 @@ package service
 
 import (
 	"fmt"
-	"github.com/coreos/go-systemd/v22/unit"
 	"io"
 	"log"
 	"os"
+	"package-to-image-placer/pkg/configuration"
 	"package-to-image-placer/pkg/helper"
+	"package-to-image-placer/pkg/user"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/coreos/go-systemd/v22/unit"
 )
 
 // AddService adds the serviceFile to /etc/systemd/system in image
@@ -18,7 +22,7 @@ import (
 // serviceFile: full path to the service file in the target image
 // mountDir: path to the target image mount point
 // packageDir: path to the package directory in the target image
-func AddService(serviceFile string, mountDir string, packageDir string, overwrite bool) error {
+func AddService(serviceFile string, mountDir string, packageDir string, packageConfig *configuration.PackageConfig) error {
 	log.Printf("Activating service %s", filepath.Base(serviceFile))
 	opts, err := parseServiceFile(serviceFile)
 	if err != nil {
@@ -40,7 +44,7 @@ func AddService(serviceFile string, mountDir string, packageDir string, overwrit
 		return err
 	}
 
-	destPath, err := activateService(mountDir, serviceFile, overwrite)
+	destPath, err := activateService(mountDir, serviceFile, packageConfig)
 	if err != nil {
 		return err
 	}
@@ -48,23 +52,45 @@ func AddService(serviceFile string, mountDir string, packageDir string, overwrit
 	return nil
 }
 
-// activateService copies the service file to the image and creates a symlink to it in the multi-user.target.wants directory
-func activateService(mountDir string, serviceFile string, overwrite bool) (string, error) {
-	destPath := filepath.Join(mountDir, "etc/systemd/system", filepath.Base(serviceFile))
-	symlinkPath := filepath.Join(mountDir, "/etc/systemd/system/multi-user.target.wants", filepath.Base(serviceFile))
-	if !overwrite {
-		if _, err := os.Lstat(destPath); err == nil {
-			return "", fmt.Errorf("service file already exists: '%s'... Use -overwrite to overwrite the service", destPath)
-		}
-		if _, err := os.Lstat(symlinkPath); err == nil {
-			return "", fmt.Errorf("service symlink already exists: '%s'... Use -overwrite to overwrite the symlink", symlinkPath)
+// checkAndHandleServiceFileOverwrite checks if the file or symlink exists and handles overwriting based on user input or configuration.
+func checkAndHandleServiceFileOverwrite(destPath string, symlinkPath string, serviceFile string, mountDir string, packageConfig *configuration.PackageConfig) error {
+	destFilePathInPackage := helper.RemoveMountDirAndPackageName(serviceFile, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
+
+	if (helper.DoesFileExists(destPath) || helper.DoesFileExists(symlinkPath)) && !slices.Contains(packageConfig.OverwriteFiles, destFilePathInPackage) {
+		if configuration.Config.InteractiveRun {
+			if user.GetUserConfirmation("Service file " + destFilePathInPackage + " already exists. Do you want to overwrite it?") {
+				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, destFilePathInPackage)
+
+			} else {
+				return fmt.Errorf("file %s already exists and user chose not to overwrite it", destFilePathInPackage)
+			}
+		} else if !slices.Contains(packageConfig.OverwriteFiles, destFilePathInPackage) {
+			return fmt.Errorf("file %s already exists and is not in the overwrite list", destFilePathInPackage)
 		}
 	}
-	err := helper.CopyFile(destPath, serviceFile, 0644)
+	return nil
+}
+
+// activateService copies the service file to the image and creates a symlink to it in the multi-user.target.wants directory
+func activateService(mountDir string, serviceFile string, packageConfig *configuration.PackageConfig) (string, error) {
+	serviceDestFile := serviceFile
+	if packageConfig.ServiceNameSuffix != "" {
+		serviceDestFile = strings.TrimSuffix(serviceFile, ".service") + "-" + packageConfig.ServiceNameSuffix + ".service"
+	}
+
+	destPath := filepath.Join(mountDir, "/etc/systemd/system", filepath.Base(serviceDestFile))
+	symlinkPath := filepath.Join(mountDir, "/etc/systemd/system/multi-user.target.wants", filepath.Base(serviceDestFile))
+
+	err := checkAndHandleServiceFileOverwrite(destPath, symlinkPath, serviceFile, mountDir, packageConfig)
+	if err != nil {
+		return "", err
+	}
+
+	err = helper.CopyFile(destPath, serviceFile, 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to copy service file: %v", err)
 	}
-	err = os.Symlink(filepath.Join("..", filepath.Base(serviceFile)), symlinkPath)
+	err = os.Symlink(filepath.Join("..", filepath.Base(serviceDestFile)), symlinkPath)
 	if err != nil && !os.IsExist(err) {
 		return "", fmt.Errorf("failed to create symlink: %v", err)
 	}
@@ -147,7 +173,8 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	execOpt := optsMap["ExecStart"]
 	execStart := execOpt.Value
 
-	originalExecutable := strings.Trim(helper.SplitStringPreserveSubstrings(execStart)[0], "'\"")
+	execStartStrings := helper.SplitStringPreserveSubstrings(execStart)
+	originalExecutable := strings.Trim(execStartStrings[0], "'\"")
 	executableWithoutWorkDir := strings.TrimPrefix(originalExecutable, workingDir)
 
 	newWorkDirWithMountDir, err := findExecutableInPath(filepath.Dir(serviceFile), executableWithoutWorkDir, packageDir)
@@ -161,8 +188,11 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	}
 
 	newExecutablePath := filepath.Join(newWorkDir, executableWithoutWorkDir)
-	newExecStartCommand := strings.ReplaceAll(execStart, originalExecutable, newExecutablePath)
-	newExecStartCommand = strings.ReplaceAll(newExecStartCommand, workingDir, newWorkDir)
+	newExecStartCommand := newExecutablePath
+	for i := 1; i < len(execStartStrings); i++ {
+		replaced := strings.Replace(execStartStrings[i], workingDir, newWorkDir, 1)
+		newExecStartCommand = strings.Join([]string{newExecStartCommand, replaced}, " ")
+	}
 
 	log.Printf("Updated ExecStart path from: %s to: %s", execStart, newExecutablePath)
 
@@ -253,6 +283,7 @@ func AreAllServiceFromConfigPresent(serviceFiles []string, configServiceNames []
 	return true
 }
 
+// CheckRequiredServicesEnabled checks if the required services of the newly added services are enabled.
 func CheckRequiredServicesEnabled(mountDir string, serviceNames []string) error {
 	log.Printf("Checking if the required services of the newly added services are enabled.")
 	for _, serviceName := range serviceNames {
@@ -280,6 +311,7 @@ func CheckRequiredServicesEnabled(mountDir string, serviceNames []string) error 
 	return nil
 }
 
+// isServiceEnabled checks if the service is enabled by checking if the symlink exists in the wants or requires directory.
 func isServiceEnabled(mountDir, serviceName string) (bool, error) {
 	// Define the patterns to search for
 	servicePath := filepath.Join(mountDir, "etc/systemd/system")
@@ -308,6 +340,7 @@ func isServiceEnabled(mountDir, serviceName string) (bool, error) {
 	return false, nil
 }
 
+// isTargetEnabled checks if the target is enabled by checking if the symlink exists in the target's wants or requires directory.
 func isTargetEnabled(mountDir, targetName string) bool {
 	servicePath := filepath.Join(mountDir, "etc/systemd/system")
 	wantsPath := filepath.Join(servicePath, targetName+".wants")
@@ -321,6 +354,7 @@ func isTargetEnabled(mountDir, targetName string) bool {
 	return false
 }
 
+// parseRequiredOption parses the Requires option from the service file and returns a slice of required services.
 func parseRequiredOption(serviceFile string) ([]string, error) {
 	opts, err := parseServiceFile(serviceFile)
 	if err != nil {
