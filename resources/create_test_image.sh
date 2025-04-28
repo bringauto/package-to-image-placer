@@ -7,7 +7,6 @@ cleanup() {
   [[ -n "${loop_device:-}" ]] && sudo losetup -d "$loop_device" || true
   [[ -d "${mount_dir1:-}" ]] && sudo umount "$mount_dir1" 2>/dev/null && rmdir "$mount_dir1"
   [[ -d "${mount_dir2:-}" ]] && sudo umount "$mount_dir2" 2>/dev/null && rmdir "$mount_dir2"
-  [[ -f "${image_file:-}" ]] && rm -f "$image_file"
 }
 trap cleanup EXIT
 
