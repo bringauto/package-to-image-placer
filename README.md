@@ -60,9 +60,11 @@ When passing arguments through the command line, it is recommended to use the `-
 
 > Command line arguments are overriding the config file values.
 
+**For comprehensive details about input data requirements and a practical mock use case, please consult the [Use Case Example Documentation](doc/UseCaseExample.md).**
+
 ## Tests
 
-### Unit tests
+### Unit Tests
 
 To run all unit tests, run:
 
@@ -70,15 +72,15 @@ To run all unit tests, run:
 go test ./...
 ```
 
-### Integration tests
+### Integration Tests
 
 To run integration tests, refer to the [tests/README.md](tests/README.md) file.
 
-## Config file
+## Config File
 
 The configuration for the image customization process can be generated through an interactive run. Alternatively, you can directly edit a configuration file to specify the packages to be applied, the target partitions for these changes, and the service files that should be activated.
 
-The default configuration file is located at [default-config.json](./resources/default-config.json).
+The example configuration file is located at [example_config.json](./resources/example_config.json).
 
 The structure of the configuration file is defined in JSON format as follows:
 
@@ -126,7 +128,7 @@ The service files are activated by copying them to `/etc/system/systemd/` and cr
 
 The paths in the image are updated based on `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
 
-### Service requirements
+### Service Requirements
 
 The service file must:
 
@@ -142,11 +144,11 @@ The service file must:
   * `Type=simple`
   * `WantedBy=multi-user.target`
 
-## Libguest installation
+## Libguest Installation
 
 Libquestfs is a library for modifying disk images. It is used to mount the disk image without root permissions.
 
-### Debian based
+### Debian Based
 
 ```bash
 sudo apt-get install libguestfs-tools
@@ -173,7 +175,7 @@ sudo dnf install libguestfs-tools
 
 ## Troubleshooting
 
-### Libvirt error
+### Libvirt Error
 
 If you have error that look like this:
 
