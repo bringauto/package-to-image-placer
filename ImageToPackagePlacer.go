@@ -37,10 +37,10 @@ func main() {
 	}
 
 	newConfigFilePath := ""
-	var packages []string
 	if configuration.Config.InteractiveRun {
+		log.Printf("Selecting standard packages.\n")
 		header_base := "Choose standard package to copy."
-		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
+		packages, err := user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
 		log.Printf("Selected standard packages: %v\n", packages)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
@@ -51,6 +51,7 @@ func main() {
 			configuration.Config.Packages = append(configuration.Config.Packages, packageConfig)
 		}
 
+		log.Printf("Selecting configuration packages.\n")
 		header_base = "Choose configuration package to copy."
 		packages, err = user.SelectFilesInDir(configuration.Config.PackageDir, header_base)
 		log.Printf("Selected configuration packages: %v\n", packages)
@@ -165,7 +166,7 @@ func parseArguments(args []string) error {
 	if *showUsage {
 		fmt.Printf("Usage:\n" +
 			"Interactive: \t\tpackage-to-image-placer -target <target_image> [ -source <src_image> | -no-clone ] [ opts... ]\n" +
-			"Non-interactive: \tpackage-to-image-placer -configuration.Config <config_file> [ <override-opts> ]\n")
+			"Non-interactive: \tpackage-to-image-placer -config <config_file> [ <override-opts> ]\n")
 		flags.PrintDefaults()
 		os.Exit(0)
 	}
