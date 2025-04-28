@@ -38,3 +38,4 @@ tests/.pytest_cache/
 tests/venv/
 tests/test_data/
 package_to_image_placer.log
+resources/testing_image.img
