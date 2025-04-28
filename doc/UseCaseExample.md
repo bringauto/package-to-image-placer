@@ -16,7 +16,7 @@ To demonstrate the tool, navigate to the [resources](../resources/) directory. F
 ./create_test_image.sh
 ```
 
-Then, run the tool with the example configuration file:
+Then, run the tool with the example configuration file (a prerequisite is that the test image is created and package-to-image-placer is built):
 
 ```bash
 ../package-to-image-placer -config example_config.json
