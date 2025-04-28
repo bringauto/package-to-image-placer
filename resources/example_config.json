@@ -1,0 +1,20 @@
+{
+  "source": "testing_image.img",
+  "target": "testing_image_with_package.img",
+  "no-clone": false,
+  "packages": [
+    {
+      "package-path": "example_package.zip",
+      "enable-services": true,
+      "service-name-suffix": "your-suffix",
+      "target-directory": "/",
+      "overwrite-files": null
+    }
+  ],
+  "configuration-packages": [],
+  "partition-numbers": [
+    1,
+    2
+  ],
+  "log-path": ""
+}
