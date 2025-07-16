@@ -154,19 +154,19 @@ The service file must:
 ### Service Paths
 
 The `WorkingDirectory` field is updated to the package path in the target image. 
-The package path consist of the TargetDirectory set for the package in configuration and the package directory name. 
-The package directory is determined by finding the executable in the added package.
+The package path consist of the TargetDirectory set for the package in configuration and 
+the package directory name, determined by finding the executable in the added package.
 
 In `ExecStart` field every occurrence of the original `WorkingDirectory` path is replaced with the new one.
 
 The executable path in `ExecStart` is always prefixed with the new `WorkingDirectory` path. 
-The reason is that the service should always start an executable from the package, not from the system.
+The reason is that the service should always start an executable from the package as it represents virtual standalone sysroot, not from the system.
 Executable path example: `/usr/bin/echo` is updated to `/package-path/usr/bin/echo`.
 
 Full path example:
 ```
 WorkingDirectory=/original-path/
-ExecStart=./bin/executable --argument=/original-path/argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path
+ExecStart=/bin/executable --argument=/original-path/argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path
 ```
 is updated to:
 ```
