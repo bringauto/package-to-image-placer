@@ -45,7 +45,7 @@ func TestAddService_Success(t *testing.T) {
 	targetService, err := parseServiceFile(targetServiceFilePath)
 	workingDirectoryExpected := "/package/dir-with-executable/"
 	if targetService["WorkingDirectory"].Value != workingDirectoryExpected {
-		t.Fatalf("expected WorkingDirectory to be %s, got %s", packageConfig.TargetDirectory, targetService["WorkingDirectory"])
+		t.Fatalf("expected WorkingDirectory to be %s, got %s", workingDirectoryExpected, targetService["WorkingDirectory"].Value)
 	}
 	execStartExpected := workingDirectoryExpected + "bin/executable --argument=" + workingDirectoryExpected + "argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path"
 	if targetService["ExecStart"].Value != execStartExpected {
