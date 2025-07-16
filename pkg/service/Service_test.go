@@ -12,7 +12,7 @@ var packageConfig = configuration.PackageConfig{
 	PackagePath:       "../../testdata/archives/example_without_service.zip",
 	EnableServices:    true,
 	ServiceNameSuffix: "",
-	TargetDirectory:   "target/dir",
+	TargetDirectory:   "package/",
 	OverwriteFiles:    nil,
 }
 
@@ -21,7 +21,10 @@ func TestAddService_Success(t *testing.T) {
 	serviceFile, _ := filepath.Abs("../../testdata/service-mount/package/valid.service")
 	mountDir, _ := filepath.Abs("../../testdata/service-mount")
 	packageDir, _ := filepath.Abs("../../testdata/service-mount/package")
-
+	t.Cleanup(func() {
+		os.Remove(filepath.Join(mountDir, "etc/systemd/system/multi-user.target.wants/valid.service"))
+		os.Remove(filepath.Join(mountDir, "etc/systemd/system/valid.service"))
+	})
 	// Renew service file. That will be changed during test
 	err := helper.CopyFile(serviceFile, serviceFile+".in", os.FileMode(0666))
 	if err != nil {
@@ -37,10 +40,17 @@ func TestAddService_Success(t *testing.T) {
 		t.Fatalf("expected service to be enabled, got disabled")
 	}
 
-	t.Cleanup(func() {
-		os.Remove(filepath.Join(mountDir, "etc/systemd/system/multi-user.target.wants/valid.service"))
-		os.Remove(filepath.Join(mountDir, "etc/systemd/system/valid.service"))
-	})
+	// Check paths are updated correctly
+	targetServiceFilePath := filepath.Join(mountDir, "etc/systemd/system/valid.service")
+	targetService, err := parseServiceFile(targetServiceFilePath)
+	workingDirectoryExpected := "/package/dir-with-executable/"
+	if targetService["WorkingDirectory"].Value != workingDirectoryExpected {
+		t.Fatalf("expected WorkingDirectory to be %s, got %s", packageConfig.TargetDirectory, targetService["WorkingDirectory"])
+	}
+	execStartExpected := workingDirectoryExpected + "bin/executable --argument=" + workingDirectoryExpected + "argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path"
+	if targetService["ExecStart"].Value != execStartExpected {
+		t.Fatalf("expected ExecStart to be %s, got %s", execStartExpected, targetService["ExecStart"].Value)
+	}
 }
 
 func TestAddService_MissingRequiredFields(t *testing.T) {
