@@ -245,7 +245,7 @@ func findExecutableInPath(startPath, executable, packageDir string) (string, err
 		return searchInPath(filepath.Dir(currentPath), false)
 	}
 
-	return searchInPath(startPath, true)
+	return searchInPath(packageDir, true)
 }
 
 // createUnitOptionsSlice converts a map of unit options to a slice of unit options.

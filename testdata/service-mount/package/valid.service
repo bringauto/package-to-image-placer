@@ -1,14 +1,14 @@
 [Service]
-Restart=always
 RestartSec=10
 User=root
 Type=simple
-ExecStart=/package/dir-with-executable/bin/executable --argument=/package/dir-with-executable/argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path
+Restart=always
 WorkingDirectory=/package/dir-with-executable/
-
-[Unit]
-After=network.target
-Description=Valid Service
+ExecStart=/package/dir-with-executable/bin/executable --argument=/package/dir-with-executable/argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path
 
 [Install]
 WantedBy=multi-user.target
+
+[Unit]
+Description=Valid Service
+After=network.target

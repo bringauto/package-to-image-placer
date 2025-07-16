@@ -142,11 +142,14 @@ The service file must:
 * service file suffix must not start with a hyphen.
 * contain the following fields:
   * `ExecStart`
+    * Executable in `ExecStart` must be present in the package.
+    * The executable path is absolute
   * `User`
   * `RestartSec`
   * `WorkingDirectory`
   * `Type=simple`
   * `WantedBy=multi-user.target`
+
 
 ### Service Paths
 
