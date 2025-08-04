@@ -177,7 +177,7 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	originalExecutable := strings.Trim(execStartStrings[0], "'\"")
 	executableWithoutWorkDir := strings.TrimPrefix(originalExecutable, workingDir)
 
-	newWorkDirWithMountDir, err := findExecutableInPath(filepath.Dir(serviceFile), executableWithoutWorkDir, packageDir)
+	newWorkDirWithMountDir, err := findExecutableInPath(executableWithoutWorkDir, packageDir)
 	if err != nil {
 		return fmt.Errorf("unable to find executable %s: %s", executableWithoutWorkDir, err)
 	}
@@ -209,10 +209,10 @@ func updatePathsInServiceFile(optsMap map[string]unit.UnitOption, mountDir, pack
 	return nil
 }
 
-// findExecutableInPath searches for the executable in the given path and package directory.
+// findExecutableInPath searches for the executable in the package directory.
 // It returns the path where the executable is found or an error if not found.
-// Starting from the given path, it goes up the directory tree until it reaches the package directory.
-func findExecutableInPath(startPath, executable, packageDir string) (string, error) {
+// Starting from the package path, it goes up the directory tree until it reaches the package directory.
+func findExecutableInPath(executable, packageDir string) (string, error) {
 	var searchInPath func(string, bool) (string, error)
 	searchInPath = func(currentPath string, recursive bool) (string, error) {
 		if !strings.HasPrefix(currentPath+"/", packageDir) {
@@ -245,7 +245,7 @@ func findExecutableInPath(startPath, executable, packageDir string) (string, err
 		return searchInPath(filepath.Dir(currentPath), false)
 	}
 
-	return searchInPath(startPath, true)
+	return searchInPath(packageDir, true)
 }
 
 // createUnitOptionsSlice converts a map of unit options to a slice of unit options.

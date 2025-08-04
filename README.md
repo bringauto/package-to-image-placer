@@ -130,7 +130,7 @@ The structure of the configuration file is defined in JSON format as follows:
 The tool can activate service files in the image.
 The service files are activated by copying them to `/etc/systemd/system/` and creating a symlink to the file in `/etc/systemd/system/multi-user.target.wants/`.
 
-The paths in the image are updated based on the `WorkingDirectory` field, where the original WorkingDirectory is replaced with the new path in the target image.
+The paths in the service are updated based on the `WorkingDirectory`. See [Service Paths](#service-paths) section for more details.
 
 ### Service Requirements
 
@@ -142,11 +142,39 @@ The service file must:
 * service file suffix must not start with a hyphen.
 * contain the following fields:
   * `ExecStart`
+    * Executable in `ExecStart` must be present in the package.
+    * The executable path is absolute
   * `User`
   * `RestartSec`
   * `WorkingDirectory`
   * `Type=simple`
   * `WantedBy=multi-user.target`
+
+
+### Service Paths
+
+The `WorkingDirectory` field is updated to the package path in the target image. 
+The package path consist of the TargetDirectory set for the package in configuration and 
+the package directory name, determined by finding the executable in the added package.
+
+In `ExecStart` field every occurrence of the original `WorkingDirectory` path is replaced with the new one.
+
+The executable path in `ExecStart` is always prefixed with the new `WorkingDirectory` path. 
+The reason is that the service should always start an executable from the package as it represents virtual standalone sysroot, not from the system.
+Executable path example: `/usr/bin/echo` is updated to `/package-path/usr/bin/echo`.
+
+Full path example:
+```
+WorkingDirectory=/original-path/
+ExecStart=/bin/executable --argument=/original-path/argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path
+```
+is updated to:
+```
+WorkingDirectory=/package-path/
+ExecStart=/package-path/bin/executable --argument=/package-path/argument --relative-path=./etc/relative-path --absolute-path=/etc/absolute-path
+```
+
+> Note: If the `WorkingDirectory` is set to `/`, all paths in the `ExecStart` will be updated to the package path
 
 ## Libguest Installation
 

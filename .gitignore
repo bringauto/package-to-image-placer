@@ -23,8 +23,6 @@ package-to-image-placer
 go.work
 go.work.sum
 
-go.sum
-
 # env file
 .env
 
@@ -39,3 +37,4 @@ tests/venv/
 tests/test_data/
 package_to_image_placer.log
 resources/testing_image.img
+testdata/valid.service
