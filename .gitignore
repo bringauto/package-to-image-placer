@@ -23,8 +23,6 @@ package-to-image-placer
 go.work
 go.work.sum
 
-go.sum
-
 # env file
 .env
 
