@@ -320,7 +320,7 @@ func decompressZipArchiveAndReturnService(zipReader *zip.ReadCloser, targetDir s
 func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir string, packageConfig *configuration.PackageConfig) error {
 	log.Printf("Decompressing file %s to %s", srcZipFile.Name, destFilePath)
 	// Check if the destination file already exists
-	_, err := os.Stat(destFilePath)
+	destFileInfo, err := os.Stat(destFilePath)
 	if err == nil {
 		destFilePathInPackage := helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
 		if configuration.Config.InteractiveRun {
@@ -336,6 +336,12 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 		} else {
 			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathInPackage)
 		}
+	}
+	var mode os.FileMode
+	if destFileInfo != nil {
+		mode = destFileInfo.Mode()
+	} else {
+		mode = srcZipFile.Mode()
 	}
 	srcFile, err := srcZipFile.Open()
 	if err != nil {
@@ -353,7 +359,7 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 			return fmt.Errorf("unable to create symlink %s: %v", destFilePath, err)
 		}
 	} else {
-		destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcZipFile.Mode())
+		destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 		if err != nil {
 			return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
 		}
