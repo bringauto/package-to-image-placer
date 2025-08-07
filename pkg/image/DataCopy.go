@@ -337,11 +337,11 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 			return fmt.Errorf("file %s already exists and is not marked for overwrite", destFilePathInPackage)
 		}
 	}
-	var mode os.FileMode
+	var fileMode os.FileMode
 	if destFileInfo != nil {
-		mode = destFileInfo.Mode()
+		fileMode = destFileInfo.Mode()
 	} else {
-		mode = srcZipFile.Mode()
+		fileMode = srcZipFile.Mode()
 	}
 	srcFile, err := srcZipFile.Open()
 	if err != nil {
@@ -359,7 +359,7 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 			return fmt.Errorf("unable to create symlink %s: %v", destFilePath, err)
 		}
 	} else {
-		destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+		destFile, err := os.OpenFile(destFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, fileMode)
 		if err != nil {
 			return fmt.Errorf("unable to create file %s: %v", destFilePath, err)
 		}
