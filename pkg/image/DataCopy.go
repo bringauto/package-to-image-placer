@@ -160,7 +160,6 @@ func MountPartitionAndCopyPackages(partitionNumber int, firstPartition bool) err
 			return fmt.Errorf("error while copying package: %v", err)
 		}
 	}
-	// tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
 	for i := range configuration.Config.ConfigurationPackages {
 		tmpPackage := configuration.PackageConfig{EnableServices: false, ServiceNameSuffix: "", TargetDirectory: "", IsStandardPackage: false}
 		tmpPackage.PackagePath = configuration.Config.ConfigurationPackages[i].PackagePath
@@ -322,7 +321,13 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 	// Check if the destination file already exists
 	destFileInfo, err := os.Stat(destFilePath)
 	if err == nil {
-		destFilePathInPackage := helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
+		var destFilePathInPackage string
+		if packageConfig.IsStandardPackage {
+			destFilePathInPackage = helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
+		} else {
+			// This is configuration package, where the file are not in package dir -> do not remove package nae from path
+			destFilePathInPackage = helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, "")
+		}
 		if configuration.Config.InteractiveRun {
 			if user.GetUserConfirmation("File: " + destFilePathInPackage + " already exists. Do you want to overwrite it?") {
 				packageConfig.OverwriteFiles = append(packageConfig.OverwriteFiles, destFilePathInPackage)

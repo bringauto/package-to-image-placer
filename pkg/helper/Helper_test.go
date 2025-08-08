@@ -49,3 +49,15 @@ func TestRemoveMountDirAndPackageName_2(t *testing.T) {
 		t.Errorf("Expected %s, got %s", expected, result)
 	}
 }
+
+func TestRemoveMountDirAndPackageName_3(t *testing.T) {
+	// test simulates removing path when used config package, where you do not remove package path
+	path := "/mnt/test/dir1/dir1/dirInPackage1/dirInPackage2/file.txt"
+	mountDir := "/mnt/test"
+	packageDir := "dir1/dir1"
+	expected := "/dirInPackage1/dirInPackage2/file.txt"
+	result := RemoveMountDirAndPackageName(path, mountDir, packageDir, "")
+	if result != expected {
+		t.Errorf("Expected %s, got %s", expected, result)
+	}
+}

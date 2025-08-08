@@ -438,3 +438,56 @@ def test_15_write_multiple_different_packages(package_to_image_placer_binary):
     result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
     assert result.returncode == 0
     assert inspect_image(config)
+
+def test_16_overwrote_config_package_without_overwrite(package_to_image_placer_binary):
+    "Write 2 times the same config package so it fails because the second write is duplicite"
+    config = "test_data/test_config.json"
+    img_in = "test_data/test_img.img.in"
+    img_out1 = "test_data/test_img_out.img"
+    conf_package = "test_data/configuration_package"
+    conf_package_zip = conf_package + ".zip"
+    partitions = [1]
+
+    create_test_package(conf_package, "10KB")
+    create_image(img_in, "10MB", 1)
+    make_image_mountable(img_in)
+    create_config(
+        config,
+        img_in,
+        img_out1,
+        [],
+        partitions,
+        [create_configuration_package_config(conf_package_zip)],
+    )
+
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 0
+    assert inspect_image(config)
+
+    create_config(
+        config,
+        "",
+        img_out1,
+        [],
+        partitions,
+        [create_configuration_package_config(conf_package_zip)],
+        True
+    )
+    # try to write the same package again without overwrite flag
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 1
+
+    # try to write the same package again with overwrite flag
+    create_config(
+        config,
+        "",
+        img_out1,
+        [],
+        partitions,
+        [create_configuration_package_config(conf_package_zip,overwrite_file=["/configuration_package/test_file","/configuration_package/symlinks/symlink"])],
+        True
+    )
+    # try to write the same package again without overwrite flag
+    result = run_package_to_image_placer(package_to_image_placer_binary, config=config)
+    assert result.returncode == 0
+    assert inspect_image(config)
