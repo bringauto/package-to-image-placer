@@ -325,7 +325,7 @@ func decompressZipFile(destFilePath string, srcZipFile *zip.File, mountDir strin
 		if packageConfig.IsStandardPackage {
 			destFilePathInPackage = helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, packageConfig.PackagePath)
 		} else {
-			// This is configuration package, where the file are not in package dir -> do not remove package nae from path
+			// This is a configuration package, where the files are not in the package dir -> do not remove the package name from the path
 			destFilePathInPackage = helper.RemoveMountDirAndPackageName(destFilePath, mountDir, packageConfig.TargetDirectory, "")
 		}
 		if configuration.Config.InteractiveRun {
