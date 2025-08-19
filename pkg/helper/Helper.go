@@ -89,6 +89,8 @@ func SplitStringPreserveSubstrings(input string) []string {
 	return re.FindAllString(input, -1)
 }
 
+// RemoveMountDirAndPackageName removes the mount directory and package name from the given path.
+// Serves to get an absolute path in the final image context
 func RemoveMountDirAndPackageName(path string, mountDir string, packageDir string, packagePath string) string {
 	path = strings.TrimPrefix(path, mountDir)
 
@@ -97,8 +99,10 @@ func RemoveMountDirAndPackageName(path string, mountDir string, packageDir strin
 	path = strings.TrimPrefix(path, packageDir)
 
 	path = strings.TrimPrefix(path, "/")
-	packageName := strings.TrimSuffix(filepath.Base(packagePath), ".zip")
-	path = strings.TrimPrefix(path, packageName)
+	if packagePath != "" {
+		packageName := strings.TrimSuffix(filepath.Base(packagePath), ".zip")
+		path = strings.TrimPrefix(path, packageName)
+	}
 
 	if path == "" {
 		path = "/"
